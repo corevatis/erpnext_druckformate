@@ -1,0 +1,175 @@
+<!-- For the doctype layout of dunning starting from v15 -->
+<style>
+    .print-format {
+        margin-left: 0mm;
+        margin-right: 0mm;
+        margin-top: 10mm;
+        margin-bottom: 45mm;
+        font-size: 10pt;
+    }
+</style>
+
+{% set company = frappe.get_doc("Company", doc.company) %}
+{% set customer = frappe.get_doc("Customer", doc.customer) %}
+{% set cmp_addr = frappe.get_doc("Address", doc.company_address) if doc.company_address else None %}
+{% set pay_addr = frappe.get_doc("Address", doc.customer_address) if doc.customer_address else None %}
+
+{% if doc.contact_person %}
+    {% set contact = frappe.get_doc("Contact", doc.contact_person) %}
+{% endif %}
+
+<!-- HEAD -->
+<div id="header">
+    <div class="letter-head">
+        {{ letter_head }}
+    </div>
+</div>
+
+<div class="contact-row">
+    <div id="address">
+        <div id="sender">
+            {% if cmp_addr %}
+                <p>{{ cmp_addr.address_title }} &#183; {{ cmp_addr.address_line1 }} &#183;
+                    {% if cmp_addr.address_line2 %}{{ cmp_addr.address_line2 }} <br>{% endif %}
+                    {{ cmp_addr.pincode }} {{ cmp_addr.city }}
+                    {% if pay_addr and cmp_addr.country != pay_addr.country -%}
+                        &#183; {{ cmp_addr.country | upper }}
+                    {%- endif %}
+                </p>
+            {% endif %}
+        </div>
+        {{ doc.customer_name }}<br />
+        {% if contact %}
+                {%- if contact.salutation -%}
+                    {{ _(contact.salutation) }}
+                {%- endif %}
+                {%- if contact.salutation in ["Hr.", "Herr", "Mr"] and frappe.lang == "de" %}n{% endif %}
+                {{ contact.first_name }} {{ contact.last_name }}<br>
+        {% endif %}
+        {% if pay_addr %}
+            {{ doc.address_display }}
+        {% endif %}
+    </div>
+
+    <div id="contact">
+        <table class="w-100 text-small">
+            <colgroup>
+                <col style="width: 25mm">
+                <col style="width: 50mm">
+            </colgroup>
+
+            <tbody>
+                {% if company.phone_no %}
+                <tr>
+                    <td>{{ _("Phone") }}:</td>
+                    <td class="text-right">{{ company.phone_no }}</td>
+                </tr>
+                {% endif %}
+
+                {% if company.email %}
+                <tr>
+                    <td>{{ _("Email") }}:</td>
+                    <td class="text-right">{{ company.email }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td>{{ _("Date") }}:</td>
+                    <td class="text-right">{{ frappe.utils.formatdate(doc.posting_date, "long") }}</td>
+                </tr>
+                <tr>
+                    <td>{{ _("Our Reference") }}</td>
+                    <td class="text-right">{{ doc.name }}</td>
+                </tr>
+                {% if customer.tax_id %}
+                <tr>
+                    <td>{{ _("Your Tax ID") }}:</td>
+                    <td class="text-right">{{ customer.tax_id }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="faltmarke-1" class="din-mark"></div>
+<div id="lochmarke" class="din-mark"></div>
+<div id="faltmarke-2" class="din-mark"></div>
+
+<!-- CONTENT -->
+<div id="text">
+    <div id="subject">
+        <strong>{{ doc.dunning_type }}</strong><br>
+    </div>
+
+    {% if doc.body_text and (doc.body_text | striptags) %}
+    {{ doc.body_text or "" }}
+    <br>
+    {% endif %}
+
+    <table class="w-100 text-small">
+        <thead class="black-border">
+            <tr>
+                <th style="width: 5%">{{ _("Sr") }}</th>
+                <th style="width: 25%">{{ _("Invoice Number") }}</th>
+                <th style="width: 20%">{{ _("Due Date") }}</th>
+                <th style="width: 25%">{{ _("Overdue Days") }}</th>
+                <th style="width: 25%" class="text-right">{{ _("Outstanding Amount") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for overdue_payment in doc.overdue_payments %}
+            <tr>
+                <td>{{ overdue_payment.idx }}</td>
+                <td>{{ overdue_payment.sales_invoice }}</td>
+                <td>{{ frappe.utils.formatdate(overdue_payment.due_date, "short") }}</td>
+                <td>{{ overdue_payment.overdue_days }}</td>
+                <td class="text-right">{{ overdue_payment.get_formatted("outstanding") }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+        <tfoot class="black-border">
+            <tr>
+                <td></td>
+                <td colspan="3">{{ _("Total Outstanding") }}</td>
+                <td class="text-right">{{ doc.get_formatted("total_outstanding") }}</td>
+            </tr>
+            {% if doc.total_interest -%}
+                <tr>
+                    <td></td>
+                    <td colspan="3">{{ _("Interest") }} {{ doc.get_formatted("rate_of_interest") }} % p.a.</td>
+                    <td class="text-right">{{ doc.get_formatted("total_interest") }}</td>
+                </tr>
+            {% endif %}
+            {% if doc.dunning_fee -%}
+                <tr>
+                    <td></td>
+                    <td colspan="3">{{ _("Dunning Fee") }}</td>
+                    <td class="text-right">{{ doc.get_formatted("dunning_fee") }}</td>
+                </tr>
+            {% endif %}
+            <tr>
+                <td></td>
+                <td colspan="3"><strong>{{ _("Grand Total") }}</strong></td>
+                <td class="text-right"><strong>{{ doc.get_formatted("grand_total") }}</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    {% if doc.closing_text and (doc.closing_text | striptags) %}
+        <br>
+        {{ doc.closing_text }}
+    {% endif %}
+</div>
+
+<!-- FOOTER -->
+<div id="footer-html" class="visible-pdf">
+    <div class="letter-head-footer">
+        <p id="pagenum">
+            {{ _("Page {0} of {1}").format('<span class="page"></span>', '<span class="topage"></span>') }}
+        </p>
+        <div class="print-format-footer">
+            {{ footer }}
+        </div>
+    </div>
+</div>

@@ -1,0 +1,144 @@
+<style>
+    .print-format {
+        margin-left: 0mm;
+        margin-right: 0mm;
+        margin-top: 10mm;
+        margin-bottom: 45mm;
+        font-size: 10pt;
+    }
+</style>
+
+{% set company = frappe.get_doc("Company", doc.company) %}
+{% set cmp_addr = frappe.get_doc("Address", doc.company_address) if doc.company_address else None %}
+{% set ship_addr = frappe.get_doc("Address", doc.shipping_address_name) if doc.shipping_address_name else None %}
+
+<!-- HEAD -->
+<div id="header">
+    <div class="letter-head">
+        {{ letter_head }}
+    </div>
+</div>
+
+<div class="contact-row">
+    <div id="address">
+        {% if cmp_addr %}
+        <div id="sender">
+            <p>{{ cmp_addr.address_title }} &#183; {{ cmp_addr.address_line1 }} &#183;
+                {% if cmp_addr.address_line2 %}{{ cmp_addr.address_line2 }} <br>{% endif %}
+                {{ cmp_addr.pincode }} {{ cmp_addr.city }}
+                {% if ship_addr and (cmp_addr.country != ship_addr.country) -%}
+                    &#183; {{ cmp_addr.country | upper }}
+                {%- endif %}
+            </p>
+        </div>
+        {% endif %}
+        {{ doc.customer_name }}<br />
+        {{ doc.shipping_address or doc.address_display or "" }}
+    </div>
+
+    <div id="contact">
+        <table class="w-100 text-small">
+            {% if company.phone_no %}
+            <tr>
+                <td>{{ _("Phone") }}:</td>
+                <td class="text-right">{{ company.phone_no }}</td>
+            </tr>
+            {% endif %}
+
+            {% if company.email %}
+            <tr>
+                <td>{{ _("Email") }}:</td>
+                <td class="text-right">{{ company.email }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td>{{ _("Date") }}:</td>
+                <td class="text-right">{{ frappe.utils.formatdate(doc.posting_date, "long") }}</td>
+            </tr>
+            {% if doc.po_no %}
+            <tr>
+                <td>{{ _("Your PO No.") }}:</td>
+                <td class="text-right">{{ doc.po_no }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<div id="faltmarke-1" class="din-mark"></div>
+<div id="lochmarke" class="din-mark"></div>
+<div id="faltmarke-2" class="din-mark"></div>
+
+<!-- CONTENT -->
+<div id="text">
+	<div id="subject">
+		<strong>{{ _("Delivery Note") }} {{ doc.name }}</strong>
+    </div>
+
+	<table class="w-100 text-small">
+        <thead class="black-border">
+            <tr>
+                <th style="width: 10%">{{ _("Sr") }}</th>
+                <th style="width: 70%">
+                    {{ _("Description") }}</th>
+                <th style="width: 10%">{{ _("Unit") if not print_settings.print_uom_after_quantity else '&nbsp;'}}</th>
+                <th style="width: 10%">{{ _("Qty") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for n in doc.items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><b>{{ _(n.item_name) }}</b></td>
+                    <td>{{ _(n.uom) if not print_settings.print_uom_after_quantity else '&nbsp;'}}</td>
+                    <td>
+                        {{ n.get_formatted("qty") }}
+                        {% if print_settings.print_uom_after_quantity %}
+                            {{ _(n.uom) }}
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td colspan="2">
+                        {{ n.description }}
+                        {% if n.against_sales_order %}
+                            <br>{{ _("Sales Order: {0}").format(n.against_sales_order) }}
+                        {% endif %}
+                        {% if n.against_sales_invoice %}
+                            <br>{{ _("Sales Invoice: {0}").format(n.against_sales_invoice) }}
+                        {% endif %}
+                        {% if n.batch_no %}
+                            <br>{{ _("Batch No: {0}").format(n.batch_no) }}
+                        {% endif %}
+                        {% if n.serial_no %}
+                            <br>{{ _("Serial Numbers: {0}").format(n.serial_no) }}
+                        {% endif %}
+                    </td>
+                    <td></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if doc.incoterm %}
+        <p>{{ _("Terms of delivery") }}: Incoterms® 2020 {{ doc.incoterm }}{% if doc.named_place %} {{ doc.named_place }}{% endif %}</p><br>
+    {% endif %}
+
+    {% if doc.terms and (doc.terms | striptags) %}
+        <br>
+        {{ doc.terms }}
+    {% endif %}
+</div>
+
+<!-- FOOTER -->
+<div id="footer-html" class="visible-pdf">
+    <div class="letter-head-footer">
+        <p id="pagenum">
+            {{ _("Page {0} of {1}").format('<span class="page"></span>', '<span class="topage"></span>') }}
+        </p>
+        <div class="print-format-footer">
+            {{ footer }}
+        </div>
+    </div>
+</div>

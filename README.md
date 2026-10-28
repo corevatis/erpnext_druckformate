@@ -1,5 +1,16 @@
 # ERPNext print formats (DIN 5008)
 
+> **Corevatis-Branch `version-16-corevatis`:** Dieser Branch macht das Repo zu einer
+> installierbaren Frappe-App `erpnext_druckformate` für Frappe/ERPNext v16
+> (`bench get-app` / Frappe Press). `erpnext_druckformate/print_format_sources/`
+> wurde mit `frappe-pf-init` aus `config.ini`, `print_format/` und `print_style/`
+> erzeugt; `after_install` und `after_migrate` importieren die Druckformate
+> (Angebot, Ausgangsrechnung, Auftragsbestätigung, Lieferschein, Angebotsanfrage,
+> Bestellung, Mahnung). Die `pyproject.toml` des Migrators liegt hier unter
+> `src/pyproject.migrator.toml`; `frappe-pf-init` nutzt man weiter vom Upstream-Branch
+> `main`. Nach Änderungen an `print_format/` oder `print_style/`:
+> `frappe-pf-init . --source . --force`.
+
 > Originally developed for ERPNext `version-13`, also tested against `version-15`. Other versions may need minor tweaks.
 
 * `letter_head.jinja` — HTML and CSS for the footer.

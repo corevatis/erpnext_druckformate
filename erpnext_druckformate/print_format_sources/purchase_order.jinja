@@ -1,0 +1,212 @@
+<style>
+    .print-format {
+        margin-left: 0mm;
+        margin-right: 0mm;
+        margin-top: 10mm;
+        margin-bottom: 45mm;
+        font-size: 10pt;
+    }
+</style>
+
+{% set company = frappe.get_doc("Company", doc.company) %}
+{% set cmp_addr = frappe.get_doc("Address", doc.billing_address) if doc.billing_address else None %}
+{% set pay_addr = frappe.get_doc("Address", doc.supplier_address) if doc.supplier_address else None %}
+
+<!-- HEAD -->
+<div id="header">
+    <div class="letter-head">
+        {{ letter_head }}
+    </div>
+</div>
+
+<div class="contact-row">
+    <div id="address">
+        {% if cmp_addr %}
+        <div id="sender">
+            <p>{{ cmp_addr.address_title }} &#183; {{ cmp_addr.address_line1 }} &#183;
+            {% if cmp_addr.address_line2 %}{{ cmp_addr.address_line2 }}<br>{% endif %}
+            {{ cmp_addr.pincode }} {{ cmp_addr.city }}
+            {% if pay_addr and (cmp_addr.country != pay_addr.country) -%}
+                    &#183; {{ cmp_addr.country | upper }}
+            {%- endif %}
+            </p>
+        </div>
+        {% endif %}
+        {{ doc.supplier }}<br />
+        {{ doc.address_display or "" }}
+    </div>
+
+    <div id="contact">
+        <table class="w-100 text-small">
+            {% if company.phone_no %}
+            <tr>
+                <td>{{ _("Phone") }}:</td>
+                <td class="text-right">{{ company.phone_no }}</td>
+            </tr>
+            {% endif %}
+
+            {% if company.email %}
+            <tr>
+                <td>{{ _("Email") }}:</td>
+                <td class="text-right">{{ company.email }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td>{{ _("Date") }}:</td>
+                <td class="text-right">{{ frappe.utils.formatdate(doc.transaction_date, "long") }}</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<div id="faltmarke-1" class="din-mark"></div>
+<div id="lochmarke" class="din-mark"></div>
+<div id="faltmarke-2" class="din-mark"></div>
+
+<!-- CONTENT -->
+<div id="text">
+    <div id="subject">
+        <strong>{{ _("Purchase Order") }} {{ doc.name }}</strong>
+    </div>
+
+    <table class="w-100 text-small">
+        <thead class="black-border">
+            <tr>
+                <th style="width: 10%">{{ _("Sr") }}</th>
+                <th style="width: 30%">{{ _("Description") }}</th>
+                <th style="width: 10%">{{ _("Unit") if not print_settings.print_uom_after_quantity else '&nbsp;'}}</th>
+                <th style="width: 10%">{{ _("Qty") }}</th>
+                <th style="width: 12%">{{ _("Price") }}</th>
+                <!-- <th style="width: 15%">{{ _("Discount") }}</th> -->
+                <th style="width: 18%" class="text-right">{{ _("Amount") }}</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for n in doc.items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><b>{{ _(n.item_name) }}</b></td>
+                    <td>{{ _(n.uom) if not print_settings.print_uom_after_quantity else '&nbsp;'}}</td>
+                    <td>
+                        {{ n.get_formatted("qty") }}
+                        {% if print_settings.print_uom_after_quantity %}
+                            {{ _(n.uom) }}
+                        {% endif %}
+                    </td>
+                    <td>{{ n.get_formatted("rate") }}</td>
+                    <!-- <td>{{ n.get_formatted("discount_amount") }}</td> -->
+                    <td class="text-right">{{ n.get_formatted("amount") }}</td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td colspan="4">{{ n.description }}</td>
+                    <td></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+
+        <tfoot class="black-border">
+            {% if doc.discount_amount %}
+                <tr>
+                    <td></td>
+                    <td>{{ _("Total") }}</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="text-right">{{ doc.get_formatted("total") }}</td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>{{ _("Discount") }}</td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                        {% if doc.additional_discount_percentage %}
+                            {{ doc.get_formatted("additional_discount_percentage") }} &percnt;
+                        {% endif %}
+                    </td>
+                    <td class="text-right">
+                        {{ doc.get_formatted("discount_amount") }}
+                    </td>
+                </tr>
+            {% endif %}
+            <tr>
+                <td></td>
+                <td>{{ _("Net Total") }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="text-right">{{ doc.get_formatted("net_total") }}</td>
+            </tr>
+            {% if doc.tax_category == "Reverse Charge" -%}
+                <tr>
+                    <td></td>
+                    <td>Steuerschuldnerschaft des Leistungsempfängers / The recipient of the supply is liable for tax</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="text-right"></td>
+                </tr>
+            {% else %}
+                {% for tax_row in doc.taxes -%}
+                    {% if tax_row.tax_amount or print_settings.print_taxes_with_zero_amount %}
+                        <tr>
+                            <td></td>
+                            <td>
+                            {{ tax_row.description }}
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td class="text-right">
+                                {{ tax_row.get_formatted("tax_amount") }}
+                            </td>
+                        </tr>
+                    {% endif %}
+                {%- endfor %}
+            {%- endif %}
+            <tr>
+                <td></td>
+                <td>
+                    <strong>{{ _("Grand Total") }}</strong>
+                </td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="text-right">
+                    <strong>{{ doc.get_formatted("grand_total") }}</strong>
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <br>
+    <div>
+        {% if doc.shipping_address_display %}
+        <p>
+            {{ _("Shipping Address:") }} <br>
+            {{ doc.shipping_address_display }}
+        </p>
+        <br>
+        {% endif %}
+        <p>{{ _("Please deliver by: {0}").format(doc.get_formatted("schedule_date")) }}</p>
+    </div>
+
+    {% if doc.terms and (doc.terms | striptags) %}
+        <br>
+        {{ doc.terms }}
+    {% endif %}
+</div>
+
+<!-- FOOTER -->
+<div id="footer-html" class="visible-pdf">
+    <div class="letter-head-footer">
+        <p id="pagenum">
+            {{ _("Page {0} of {1}").format('<span class="page"></span>', '<span class="topage"></span>') }}
+        </p>
+        <div class="print-format-footer">
+            {{ footer }}
+        </div>
+    </div>
+</div>
