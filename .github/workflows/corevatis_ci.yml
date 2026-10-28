@@ -1,0 +1,115 @@
+name: Corevatis CI (Frappe/ERPNext v16)
+
+on:
+  push:
+    branches: [version-16-corevatis]
+  pull_request:
+    branches: [version-16-corevatis]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: corevatis-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FRAPPE_BRANCH: version-16
+  ERPNEXT_BRANCH: version-16
+  PYTHON_VERSION: "3.14"
+  NODE_VERSION: "24"
+
+jobs:
+  unit:
+    name: Sync-Regeln (unittest, ohne Frappe)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: python -m unittest -v erpnext_druckformate.tests.test_sync_plan
+
+  site:
+    name: ERPNext-v16-Site – Installation, Sync, bench run-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      redis-cache:
+        image: redis:alpine
+        ports:
+          - 13000:6379
+      redis-queue:
+        image: redis:alpine
+        ports:
+          - 11000:6379
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=2s --health-retries=20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Frappe-/ERPNext-Commits ermitteln (Cache-Schlüssel)
+        id: upstream
+        run: |
+          echo "frappe=$(git ls-remote https://github.com/frappe/frappe "refs/heads/${FRAPPE_BRANCH}" | cut -f1)" >> "$GITHUB_OUTPUT"
+          echo "erpnext=$(git ls-remote https://github.com/frappe/erpnext "refs/heads/${ERPNEXT_BRANCH}" | cut -f1)" >> "$GITHUB_OUTPUT"
+      - name: Cache pip / yarn
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/yarn
+          key: bench-erpnext-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ steps.upstream.outputs.frappe }}-${{ steps.upstream.outputs.erpnext }}
+          restore-keys: |
+            bench-erpnext-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-
+      - name: Werkzeuge
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mariadb-client
+          pip install frappe-bench
+          yarn config set cache-folder ~/.cache/yarn
+      - name: bench init
+        run: |
+          bench init --frappe-branch "${FRAPPE_BRANCH}" --skip-redis-config-generation --skip-assets \
+            --python "$(which python)" ~/frappe-bench
+        env:
+          CI: "Yes"
+      - name: ERPNext und App holen, Site anlegen, installieren
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench get-app --skip-assets --branch "${ERPNEXT_BRANCH}" erpnext
+          bench get-app --skip-assets erpnext_druckformate "$GITHUB_WORKSPACE"
+          bench setup requirements --dev
+          bench new-site --db-host 127.0.0.1 --db-root-password root --admin-password admin \
+            --mariadb-user-host-login-scope='%' test_site
+          bench --site test_site install-app erpnext_druckformate
+        env:
+          CI: "Yes"
+      - name: migrate zweimal – Formate bleiben unverändert (kein Überschreiben)
+        working-directory: /home/runner/frappe-bench
+        run: |
+          q="select name, modified from \`tabPrint Format\` where name in ('Angebot','Ausgangsrechnung','Auftragsbestätigung','Lieferschein','Angebotsanfrage','Bestellung','Mahnung') order by name"
+          bench --site test_site migrate | tee migrate1.log
+          bench --site test_site mariadb -e "$q" > before.txt
+          bench --site test_site migrate | tee migrate2.log
+          bench --site test_site mariadb -e "$q" > after.txt
+          cat after.txt
+          [ "$(wc -l < after.txt)" -eq 8 ] || { echo "::error::nicht alle 7 Druckformate installiert"; exit 1; }
+          diff before.txt after.txt || { echo "::error::migrate hat Druckformate neu geschrieben"; exit 1; }
+          grep -q "7 unchanged" migrate2.log
+      - name: bench run-tests --app erpnext_druckformate
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench --site test_site set-config allow_tests true
+          bench --site test_site run-tests --app erpnext_druckformate
