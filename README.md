@@ -10,6 +10,22 @@
 > `src/pyproject.migrator.toml`; `frappe-pf-init` nutzt man weiter vom Upstream-Branch
 > `main`. Nach Änderungen an `print_format/` oder `print_style/`:
 > `frappe-pf-init . --source . --force`.
+>
+> **Sync-Verhalten (Corevatis, Review Epic 0 F-1):** `after_install`/`after_migrate`
+> überschreiben die Formate **nicht** mehr bei jedem `migrate`. Je Format merkt sich die
+> Site (Global Default `erpnext_druckformate:<Name>`) den Hash der Vorlage und der
+> geschriebenen Fassung: fehlt ein Format, wird es angelegt; ist es unverändert und die
+> Vorlage neu, wird es aktualisiert; unverändert und Vorlage gleich → nichts (kein neues
+> `modified`, keine Version); **im Desk geändert → bleibt erhalten**, `migrate` meldet
+> „changed on this site – not overwritten“. Anpassungen deshalb als **Duplikat** anlegen,
+> nicht das mitgelieferte Format bearbeiten. Vorlage erzwingen:
+> `bench --site <site> execute erpnext_druckformate.print_format_sources.print_formats.sync_print_formats --kwargs '{"force": true}'`
+> oder einmalig `bench --site <site> set-config -p erpnext_druckformate_force_sync 1` vor `migrate`
+> (danach wieder entfernen). Sites, die vor dieser Regel synchronisiert wurden: identische
+> Formate werden übernommen, zuletzt von `Administrator` geänderte gelten als unverändert
+> und werden aktualisiert, von anderen Benutzern geänderte bleiben erhalten. Die Logik
+> steckt auch in `src/erpnext_druckformate_migrator/template_files/print_formats.py`
+> (gleiche Datei, Test prüft das). CI: `.github/workflows/corevatis_ci.yml`.
 
 > Originally developed for ERPNext `version-13`, also tested against `version-15`. Other versions may need minor tweaks.
 
@@ -30,7 +46,7 @@ So this repo is now primarily a **template to inject into a Frappe app**:
 | Target | a Frappe app's source tree | a running site, over REST |
 | Versioned | with the app, in git | no |
 | Rollout | `bench migrate` / `bench install-app` | manual script run |
-| Editable in Desk | yes, but overwritten on `bench migrate` | yes |
+| Editable in Desk | yes; Corevatis branch: Desk edits are kept on `bench migrate` (see above) | yes |
 | Needs Sass | no (`libsass` bundled) | yes (`npm`/`brew`) |
 
 Use `frappe-pf-init` for new projects. `update.py` stays useful for ad-hoc tweaks against a running site.
