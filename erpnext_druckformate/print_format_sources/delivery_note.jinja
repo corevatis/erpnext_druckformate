@@ -87,21 +87,14 @@
         </thead>
         <tbody>
             {% for n in doc.items %}
-                <tr>
+                <tr class="position">
                     <td>{{ loop.index }}</td>
-                    <td><b>{{ _(n.item_name) }}</b></td>
-                    <td>{{ _(n.uom) if not print_settings.print_uom_after_quantity else '&nbsp;'}}</td>
                     <td>
-                        {{ n.get_formatted("qty") }}
-                        {% if print_settings.print_uom_after_quantity %}
-                            {{ _(n.uom) }}
+                        <b>{{ _(n.item_name) }}</b>
+                        <span class="position-text">
+                        {% if n.description and (n.description | striptags | trim) != (n.item_name | trim) %}
+                            <br>{{ n.description }}
                         {% endif %}
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td colspan="2">
-                        {{ n.description }}
                         {% if n.against_sales_order %}
                             <br>{{ _("Sales Order: {0}").format(n.against_sales_order) }}
                         {% endif %}
@@ -114,8 +107,15 @@
                         {% if n.serial_no %}
                             <br>{{ _("Serial Numbers: {0}").format(n.serial_no) }}
                         {% endif %}
+                        </span>
                     </td>
-                    <td></td>
+                    <td>{{ _(n.uom) if not print_settings.print_uom_after_quantity else '&nbsp;'}}</td>
+                    <td>
+                        {{ n.get_formatted("qty") }}
+                        {% if print_settings.print_uom_after_quantity %}
+                            {{ _(n.uom) }}
+                        {% endif %}
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>

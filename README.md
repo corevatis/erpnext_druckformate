@@ -27,6 +27,14 @@
 > steckt auch in `src/erpnext_druckformate_migrator/template_files/print_formats.py`
 > (gleiche Datei, Test prüft das). CI: `.github/workflows/corevatis_ci.yml`.
 
+> **Seitenumbruch (Corevatis, Befunde mvp-test):** Eine Position (Kurztext, Langtext, Menge,
+> Preise) ist genau eine Tabellenzeile und wird nicht über eine Seitengrenze getrennt; der
+> Tabellenkopf wiederholt sich auf Folgeseiten. Block-Elemente im Langtext (Text-Editor:
+> `<div class="ql-editor"><p>`) werden in der Positionszeile inline gesetzt, sonst rechnet
+> wkhtmltopdf die Umbrüche falsch (Lücken mitten auf der Seite). Beträge brechen nicht um.
+> Browser-Druck (`/printview`): `@page`-Ränder wie im PDF, keine leere Zeile „Seite von“.
+> Angebot: „Gültig bis“ nur, wenn gesetzt; Angebotsanfrage: Lieferant ohne Adresse druckbar.
+
 > Originally developed for ERPNext `version-13`, also tested against `version-15`. Other versions may need minor tweaks.
 
 * `letter_head.jinja` — HTML and CSS for the footer.
