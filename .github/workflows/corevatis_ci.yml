@@ -29,6 +29,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install nh3
       - run: python -m unittest -v erpnext_druckformate.tests.test_sync_plan erpnext_druckformate.tests.test_angebot_corevatis
 
   site:

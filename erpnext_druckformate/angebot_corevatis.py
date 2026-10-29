@@ -125,17 +125,49 @@ def text_als_html(value) -> str:
 	return "<br>".join(escape(zeile) for zeile in _text(value).splitlines())
 
 
-def langtext(row, sanitize=None) -> str:
-	"""Langtext einer Position als bereinigtes HTML, leer wenn er nur den Kurztext wiederholt.
+# Allowlist für Text-Editor-Inhalte im Druck: nur Formatierung, keine Attribute außer class
+# (ql-editor), kein style, keine Ereignisse, keine Bilder/Links
+HTML_TAGS = frozenset({"p", "br", "b", "strong", "i", "em", "u", "ul", "ol", "li", "span", "div"})
+HTML_ATTRIBUTE = {"div": {"class"}, "span": {"class"}, "p": {"class"}}
 
-	``sanitize``: HTML-Bereinigung (im Format ``frappe.utils.sanitize_html``); ohne wird
-	der Text als reiner Text maskiert."""
+
+def _ist_json(text: str) -> bool:
+	import json
+
+	if not text or text[0] not in "{[":
+		return False
+	try:
+		json.loads(text)
+	except ValueError:
+		return False
+	return True
+
+
+def html_sicher(value) -> str:
+	"""HTML aus Text-Editor-Feldern für den Druck bereinigen (Security-Review 4.3).
+
+	Immer bereinigen (anders als ``frappe.utils.sanitize_html``, das JSON und Text ohne
+	führendes Tag unverändert durchreicht): nh3 mit enger Allowlist (``HTML_TAGS``,
+	``HTML_ATTRIBUTE``). JSON wird vollständig maskiert. Ohne nh3 (nur in Tests ohne Bench)
+	wird alles maskiert."""
+	text = _text(value)
+	if not text:
+		return ""
+	if _ist_json(text):
+		return escape(text)
+	try:
+		import nh3
+	except ImportError:
+		return escape(text)
+	return nh3.clean(text, tags=set(HTML_TAGS), attributes={k: set(v) for k, v in HTML_ATTRIBUTE.items()}, url_schemes=set())
+
+
+def langtext(row, sanitize=html_sicher) -> str:
+	"""Langtext einer Position als bereinigtes HTML, leer wenn er nur den Kurztext wiederholt."""
 	beschreibung = _text(row.get("description"))
 	if not beschreibung or html_zu_zeilen(beschreibung) == _text(row.get("item_name")):
 		return ""
-	if sanitize:
-		return sanitize(beschreibung)
-	return escape(beschreibung)
+	return sanitize(beschreibung)
 
 
 def titel_und_bauvorhaben(cv_titel, adresse: str) -> tuple[str, str]:
@@ -167,18 +199,19 @@ def angebot_corevatis_daten(doc) -> dict:
 	if doc.get("owner") and doc.owner not in TECHNISCHE_BENUTZER:
 		ansprechpartner = _text(frappe.utils.get_fullname(doc.owner))
 
-	sanitize_html = frappe.utils.sanitize_html
-
 	gruppen = gruppiere(doc.get("items"))
 	for gruppe in gruppen:
 		for position in gruppe["positionen"]:
-			position["langtext"] = langtext(position["row"], sanitize_html)
+			position["langtext"] = langtext(position["row"])
 	# Ausgabe im Format: reine Texte (Titel, Bauvorhaben, Gruppen, Namen) mit „| e“,
-	# HTML-Felder (Vorbemerkung, Langtext) hier bereinigt (Security-Review 4.3)
+	# HTML-Felder (Vorbemerkung, Langtext, Bedingungen, Anschrift) hier mit html_sicher
+	# bereinigt (Security-Review 4.3)
 	return {
 		"titel": titel,
 		"bauvorhaben": bauvorhaben,
-		"vorbemerkung": sanitize_html(_text(doc.get("cv_vorbemerkung"))),
+		"vorbemerkung": html_sicher(doc.get("cv_vorbemerkung")),
+		"bedingungen": html_sicher(doc.get("terms")),
+		"anschrift": html_sicher(doc.get("address_display")),
 		"garantiehinweis": text_als_html(doc.get("cv_garantiehinweis")),
 		"kundennummer": _text(doc.get("party_name")) if doc.get("quotation_to") == "Customer" else "",
 		"ansprechpartner": ansprechpartner,

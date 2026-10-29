@@ -4,7 +4,7 @@
     Summen, Garantiehinweis, Zahlungsbedingungen, Schlussformel mit Unterschriften.
     Daten über angebot_corevatis_daten(doc) (erpnext_druckformate/angebot_corevatis.py).
     Ausgabe: Texte immer mit „| e“, HTML-Felder (Vorbemerkung, Langtext, Bedingungen,
-    Adressanzeige) nur bereinigt (sanitize_html) - nie roh.
+    Adressanzeige) nur über html_sicher (nh3, enge Allowlist) - nie roh.
     Layout und Seitenumbruch wie „Angebot“ (eine Tabellenzeile je Position, keine
     Block-Elemente in der Zeile - siehe print_formats.css). -#}
 <style>
@@ -70,7 +70,7 @@
                 {%- if contact.salutation in ["Hr.", "Herr"] %}n{% endif %}
                 {{ (contact.first_name or "") | e }} {{ (contact.last_name or "") | e }}<br>
         {% endif %}
-        {{ frappe.sanitize_html(doc.address_display or "") }}
+        {{ cv.anschrift }}
     </div>
 
     <div id="contact">
@@ -254,10 +254,10 @@
     </div>
     {% endif %}
 
-    {% if doc.terms and (doc.terms | striptags | trim) %}
+    {% if cv.bedingungen | striptags | trim %}
     <div class="cv-block">
         <h4>Zahlungsbedingungen und Gültigkeit</h4>
-        {{ frappe.sanitize_html(doc.terms) }}
+        {{ cv.bedingungen }}
     </div>
     {% endif %}
 

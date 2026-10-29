@@ -83,9 +83,54 @@ class TestTexte(unittest.TestCase):
 		self.assertEqual(ac.langtext({"item_name": "A", "description": "A"}), "")
 		self.assertEqual(ac.langtext({"item_name": "A", "description": "<p>A</p>"}), "")
 		self.assertEqual(ac.langtext({"item_name": "A", "description": None}), "")
-		# ohne Bereinigung maskiert, mit Bereinigung deren Ergebnis
-		self.assertEqual(ac.langtext({"item_name": "A", "description": "<b>x</b>"}), "&lt;b&gt;x&lt;/b&gt;")
 		self.assertEqual(ac.langtext({"item_name": "A", "description": "<b>x</b>"}, lambda h: "OK"), "OK")
+
+
+class TestHtmlSicher(unittest.TestCase):
+	def setUp(self):
+		try:
+			import nh3  # noqa: F401
+		except ImportError:
+			self.skipTest("nh3 fehlt (läuft in der Bench-CI)")
+
+	def test_formatierung_bleibt(self):
+		self.assertEqual(ac.html_sicher("<p>a <b>b</b></p><ul><li>c</li></ul>"), "<p>a <b>b</b></p><ul><li>c</li></ul>")
+		self.assertEqual(ac.html_sicher('<div class="ql-editor"><p>x</p></div>'), '<div class="ql-editor"><p>x</p></div>')
+
+	def test_gefaehrliches_entfernt(self):
+		for eingabe in (
+			"<img src=x onerror=alert(1)>",
+			"<p onclick='alert(1)'>x</p><script>alert(1)</script>",
+			'<a href="javascript:alert(1)">x</a>',
+			'<span style="background:url(javascript:alert(1))">x</span>',
+			"Text ohne führendes Tag <img src=x onerror=alert(1)> und <script>alert(1)</script>",
+		):
+			ergebnis = ac.html_sicher(eingabe)
+			for verboten in ("<img", "onerror", "onclick", "<script", "javascript:", "style=", "<a "):
+				self.assertNotIn(verboten, ergebnis, eingabe)
+
+	def test_json_maskiert(self):
+		self.assertEqual(ac.html_sicher('{"a":"<script>"}'), '{&quot;a&quot;:&quot;&lt;script&gt;&quot;}')
+
+	def test_kleiner_zeichen_maskiert(self):
+		self.assertEqual(ac.html_sicher("a < b"), "a &lt; b")
+		self.assertEqual(ac.html_sicher(None), "")
+
+
+class TestHtmlSicherOhneNh3(unittest.TestCase):
+	def test_ohne_nh3_alles_maskiert(self):
+		import builtins
+		from unittest.mock import patch
+
+		original = builtins.__import__
+
+		def ohne_nh3(name, *args, **kwargs):
+			if name == "nh3":
+				raise ImportError(name)
+			return original(name, *args, **kwargs)
+
+		with patch.object(builtins, "__import__", ohne_nh3):
+			self.assertEqual(ac.html_sicher("<img src=x>"), "&lt;img src=x&gt;")
 
 	def test_html_zu_zeilen(self):
 		self.assertEqual(ac.html_zu_zeilen("Weg 1<br>\n47877 Willich<br/>"), "Weg 1, 47877 Willich")
