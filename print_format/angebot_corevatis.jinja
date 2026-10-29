@@ -257,11 +257,14 @@
             <td></td>
         </tr>
         {% else %}
+            {#- Steuer nach Nachlass (bei Nachlass auf „Grand Total“ ist tax_amount der Betrag vor
+                dem Nachlass, ERPNext rechnet Brutto mit tax_amount_after_discount_amount) #}
             {% for tax_row in doc.taxes %}
-                {% if tax_row.tax_amount or print_settings.print_taxes_with_zero_amount %}
+                {%- set steuer_feld = "tax_amount_after_discount_amount" if tax_row.get("tax_amount_after_discount_amount") is not none else "tax_amount" %}
+                {% if tax_row.get(steuer_feld) or print_settings.print_taxes_with_zero_amount %}
                 <tr>
                     <td>{{ (tax_row.description or tax_row.account_head or "") | e }}</td>
-                    <td class="text-right">{{ tax_row.get_formatted("tax_amount") }}</td>
+                    <td class="text-right">{{ tax_row.get_formatted(steuer_feld) }}</td>
                 </tr>
                 {% endif %}
             {% endfor %}
