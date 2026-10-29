@@ -74,6 +74,10 @@ class TestTexte(unittest.TestCase):
 		self.assertEqual(ac.titel_und_bauvorhaben("Kellerabdichtung", "Weg 1, 47877 Willich"), ("Kellerabdichtung", "Weg 1, 47877 Willich"))
 		self.assertEqual(ac.titel_und_bauvorhaben(None, "Weg 1, 47877 Willich"), ("Angebot – Weg 1, 47877 Willich", ""))
 		self.assertEqual(ac.titel_und_bauvorhaben("  ", ""), ("Angebot", ""))
+		self.assertEqual(
+			ac.titel_und_bauvorhaben("Innenabdichtung · Weg 1, 47877 Willich", "Weg 1, 47877 Willich"),
+			("Innenabdichtung · Weg 1, 47877 Willich", ""),
+		)
 
 	def test_objekt_adresse(self):
 		self.assertEqual(ac.objekt_adresse({"strasse": "Weg 1", "plz": "47877", "ort": "Willich"}), "Weg 1, 47877 Willich")

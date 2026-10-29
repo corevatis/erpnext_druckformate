@@ -177,7 +177,8 @@ def titel_und_bauvorhaben(cv_titel, adresse: str) -> tuple[str, str]:
 	„Angebot“ + Objektadresse, keine zweite Zeile."""
 	titel = _text(cv_titel)
 	if titel:
-		return titel, adresse
+		# der Generator (4.1) nimmt die Objektadresse schon in den Titel auf
+		return titel, "" if adresse and adresse in titel else adresse
 	return ("Angebot – " + adresse) if adresse else "Angebot", ""
 
 
