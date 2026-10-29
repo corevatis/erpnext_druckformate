@@ -10,3 +10,7 @@ required_apps = ["frappe/erpnext"]
 # install-app und migrate in die Site importieren
 after_install = ["erpnext_druckformate.print_format_sources.print_formats.sync_print_formats"]
 after_migrate = ["erpnext_druckformate.print_format_sources.print_formats.sync_print_formats"]
+
+# Jinja-Methode für das Druckformat „Angebot Corevatis“ (Corevatis, Aufgabe 4.3):
+# Gruppierung nach Raum/Bauteil, Positionsnummern, Titel, Textbausteine
+jinja = {"methods": ["erpnext_druckformate.angebot_corevatis.angebot_corevatis_daten"]}
