@@ -15,6 +15,7 @@ from erpnext_druckformate.print_format_sources import print_formats as pf
 
 NAMES = (
 	"Angebot",
+	"Angebot Corevatis",
 	"Ausgangsrechnung",
 	"Auftragsbestätigung",
 	"Lieferschein",
@@ -102,3 +103,64 @@ class TestPrintFormatSync(IntegrationTestCase):
 		)
 		self.assertIn("Bestellung", pf.sync_print_formats()["customized"])
 		self.assertEqual(frappe.db.get_value("Print Format", "Bestellung", "css"), "/* Kunde */")
+
+
+class TestAngebotCorevatisSync(IntegrationTestCase):
+	"""Aufgabe 4.3: das neue Format folgt denselben Regeln wie die übrigen."""
+
+	NAME = "Angebot Corevatis"
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		pf.sync_print_formats(force=True)
+		frappe.db.commit()
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		pf.sync_print_formats(force=True)
+		frappe.db.commit()
+
+	def test_installiert_neben_angebot(self):
+		self.assertEqual(frappe.db.get_value("Print Format", self.NAME, "doc_type"), "Quotation")
+		self.assertEqual(frappe.db.get_value("Print Format", "Angebot", "doc_type"), "Quotation")
+		self.assertEqual(frappe.db.get_value("Print Format", self.NAME, "standard"), "No")
+
+	def test_unveraendert_wird_aktualisiert(self):
+		real_build = pf.build_print_format_docs
+
+		def neue_fassung(root):
+			docs = real_build(root)
+			for doc in docs:
+				if doc["name"] == self.NAME:
+					doc["html"] += "\n{# neue Fassung #}"
+			return docs
+
+		with patch.object(pf, "build_print_format_docs", side_effect=neue_fassung):
+			report = pf.sync_print_formats()
+		self.assertEqual(report["update"], [self.NAME], report)
+		self.assertIn("neue Fassung", frappe.db.get_value("Print Format", self.NAME, "html"))
+
+	def test_geaendert_bleibt(self):
+		doc = frappe.get_doc("Print Format", self.NAME)
+		doc.html += "\n<!-- Anpassung Büro -->"
+		doc.save()
+		real_build = pf.build_print_format_docs
+
+		def neue_fassung(root):
+			docs = real_build(root)
+			for d in docs:
+				if d["name"] == self.NAME:
+					d["html"] += "\n{# neue Fassung #}"
+			return docs
+
+		with patch.object(pf, "build_print_format_docs", side_effect=neue_fassung):
+			report = pf.sync_print_formats()
+		self.assertIn(self.NAME, report["customized"])
+		html = frappe.db.get_value("Print Format", self.NAME, "html")
+		self.assertIn("Anpassung Büro", html)
+		self.assertNotIn("neue Fassung", html)
+
+	def test_jinja_methode_registriert(self):
+		from frappe.utils.jinja import get_jenv
+
+		self.assertIn("angebot_corevatis_daten", get_jenv().globals)

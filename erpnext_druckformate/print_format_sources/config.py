@@ -24,6 +24,12 @@ PRINT_FORMATS: dict[str, dict] = {
 		"DocType": "Quotation",
 		"template": "quotation.jinja",
 	},
+	# Corevatis (Aufgabe 4.3): Titel, Positionen nach Raum/Bauteil, Textbausteine, Garantiehinweis;
+	# Daten aus erpnext_druckformate/angebot_corevatis.py (Jinja-Methode, hooks.jinja)
+	"Angebot Corevatis": {
+		"DocType": "Quotation",
+		"template": "angebot_corevatis.jinja",
+	},
 	"Ausgangsrechnung": {
 		"DocType": "Sales Invoice",
 		"template": "sales_invoice.jinja",

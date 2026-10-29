@@ -51,13 +51,32 @@ class TestContentHash(unittest.TestCase):
 
 	def test_keys_exclude_identity(self):
 		docs = pf.build_print_format_docs(SOURCES)
-		self.assertEqual(len(docs), 7)
+		self.assertEqual(len(docs), 8)
 		for doc in docs:
 			keys = pf.content_keys(doc)
 			self.assertNotIn("name", keys)
 			self.assertNotIn("creation", keys)
 			self.assertIn("html", keys)
 			self.assertIn("css", keys)
+
+
+class TestSourcesInSync(unittest.TestCase):
+	def test_angebot_corevatis_registered(self):
+		docs = {doc["name"]: doc for doc in pf.build_print_format_docs(SOURCES)}
+		self.assertEqual(docs["Angebot Corevatis"]["doc_type"], "Quotation")
+		self.assertIn("angebot_corevatis_daten(doc)", docs["Angebot Corevatis"]["html"])
+		# the standard format stays next to it
+		self.assertIn("Angebot", docs)
+
+	def test_print_format_copy_matches_source(self):
+		# print_format/*.jinja is the source, print_format_sources/ the copy frappe-pf-init writes
+		root = Path(__file__).resolve().parents[2]
+		source = root / "print_format/angebot_corevatis.jinja"
+		if not source.is_file():
+			self.skipTest("repository sources not present (installed app)")
+		self.assertEqual(
+			source.read_text(encoding="utf-8"), (SOURCES / "angebot_corevatis.jinja").read_text(encoding="utf-8")
+		)
 
 
 class TestMigratorTemplateInSync(unittest.TestCase):

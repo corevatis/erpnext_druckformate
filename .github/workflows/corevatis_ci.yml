@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - run: python -m unittest -v erpnext_druckformate.tests.test_sync_plan
+      - run: python -m unittest -v erpnext_druckformate.tests.test_sync_plan erpnext_druckformate.tests.test_angebot_corevatis
 
   site:
     name: ERPNext-v16-Site – Installation, Sync, bench run-tests
@@ -99,15 +99,15 @@ jobs:
       - name: migrate zweimal – Formate bleiben unverändert (kein Überschreiben)
         working-directory: /home/runner/frappe-bench
         run: |
-          q="select name, modified from \`tabPrint Format\` where name in ('Angebot','Ausgangsrechnung','Auftragsbestätigung','Lieferschein','Angebotsanfrage','Bestellung','Mahnung') order by name"
+          q="select name, modified from \`tabPrint Format\` where name in ('Angebot','Angebot Corevatis','Ausgangsrechnung','Auftragsbestätigung','Lieferschein','Angebotsanfrage','Bestellung','Mahnung') order by name"
           bench --site test_site migrate | tee migrate1.log
           bench --site test_site mariadb -e "$q" > before.txt
           bench --site test_site migrate | tee migrate2.log
           bench --site test_site mariadb -e "$q" > after.txt
           cat after.txt
-          [ "$(wc -l < after.txt)" -eq 8 ] || { echo "::error::nicht alle 7 Druckformate installiert"; exit 1; }
+          [ "$(wc -l < after.txt)" -eq 9 ] || { echo "::error::nicht alle 8 Druckformate installiert"; exit 1; }
           diff before.txt after.txt || { echo "::error::migrate hat Druckformate neu geschrieben"; exit 1; }
-          grep -q "7 unchanged" migrate2.log
+          grep -q "8 unchanged" migrate2.log
       - name: bench run-tests --app erpnext_druckformate
         working-directory: /home/runner/frappe-bench
         run: |
