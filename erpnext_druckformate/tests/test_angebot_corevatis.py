@@ -75,6 +75,18 @@ class TestTexte(unittest.TestCase):
 		self.assertEqual(ac.objekt_adresse({"strasse": None, "plz": None, "ort": "Willich"}), "Willich")
 		self.assertEqual(ac.objekt_adresse(None), "")
 
+	def test_text_als_html_maskiert(self):
+		self.assertEqual(ac.text_als_html("a < b\n<script>x</script>"), "a &lt; b<br>&lt;script&gt;x&lt;/script&gt;")
+		self.assertEqual(ac.text_als_html(None), "")
+
+	def test_langtext(self):
+		self.assertEqual(ac.langtext({"item_name": "A", "description": "A"}), "")
+		self.assertEqual(ac.langtext({"item_name": "A", "description": "<p>A</p>"}), "")
+		self.assertEqual(ac.langtext({"item_name": "A", "description": None}), "")
+		# ohne Bereinigung maskiert, mit Bereinigung deren Ergebnis
+		self.assertEqual(ac.langtext({"item_name": "A", "description": "<b>x</b>"}), "&lt;b&gt;x&lt;/b&gt;")
+		self.assertEqual(ac.langtext({"item_name": "A", "description": "<b>x</b>"}, lambda h: "OK"), "OK")
+
 	def test_html_zu_zeilen(self):
 		self.assertEqual(ac.html_zu_zeilen("Weg 1<br>\n47877 Willich<br/>"), "Weg 1, 47877 Willich")
 		self.assertEqual(ac.html_zu_zeilen("M&uuml;ller &amp; S&ouml;hne<br>"), "Müller & Söhne")

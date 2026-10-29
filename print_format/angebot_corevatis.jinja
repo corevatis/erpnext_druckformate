@@ -3,6 +3,8 @@
     Eventual-/Alternativpositionen gekennzeichnet und nicht in der Summe, Zusammenstellung,
     Summen, Garantiehinweis, Zahlungsbedingungen, Schlussformel mit Unterschriften.
     Daten über angebot_corevatis_daten(doc) (erpnext_druckformate/angebot_corevatis.py).
+    Ausgabe: Texte immer mit „| e“, HTML-Felder (Vorbemerkung, Langtext, Bedingungen,
+    Adressanzeige) nur bereinigt (sanitize_html) - nie roh.
     Layout und Seitenumbruch wie „Angebot“ (eine Tabellenzeile je Position, keine
     Block-Elemente in der Zeile - siehe print_formats.css). -#}
 <style>
@@ -50,32 +52,32 @@
     <div id="address">
         {% if cmp_addr %}
         <div id="sender">
-            <p>{{ cmp_addr.address_title or company.company_name }} &#183; {{ cmp_addr.address_line1 or "" }} &#183;
-                {% if cmp_addr.address_line2 %}{{ cmp_addr.address_line2 }} <br>{% endif %}
-                {{ cmp_addr.pincode or "" }} {{ cmp_addr.city or "" }}
+            <p>{{ (cmp_addr.address_title or company.company_name) | e }} &#183; {{ (cmp_addr.address_line1 or "") | e }} &#183;
+                {% if cmp_addr.address_line2 %}{{ cmp_addr.address_line2 | e }} <br>{% endif %}
+                {{ (cmp_addr.pincode or "") | e }} {{ (cmp_addr.city or "") | e }}
                 {% if pay_addr and (cmp_addr.country != pay_addr.country) -%}
-                    &#183; {{ (cmp_addr.country or "") | upper }}
+                    &#183; {{ (cmp_addr.country or "") | upper | e }}
                 {%- endif %}
             </p>
         </div>
         {% endif %}
-        {{ doc.customer_name or "" }}<br />
+        {{ (doc.customer_name or "") | e }}<br />
         {#- Ansprechpartner nur, wenn er nicht schon der Kunde ist (Privatkunde) #}
         {% if contact and ((contact.first_name or "") ~ " " ~ (contact.last_name or "")) | trim != (doc.customer_name or "") | trim %}
                 {%- if contact.salutation -%}
-                    {{ contact.salutation }}
+                    {{ contact.salutation | e }}
                 {%- endif %}
                 {%- if contact.salutation in ["Hr.", "Herr"] %}n{% endif %}
-                {{ contact.first_name or "" }} {{ contact.last_name or "" }}<br>
+                {{ (contact.first_name or "") | e }} {{ (contact.last_name or "") | e }}<br>
         {% endif %}
-        {{ doc.address_display or "" }}
+        {{ frappe.sanitize_html(doc.address_display or "") }}
     </div>
 
     <div id="contact">
         <table class="w-100 text-small">
             <tr>
                 <td>Angebot-Nr.:</td>
-                <td class="text-right">{{ doc.name }}</td>
+                <td class="text-right">{{ doc.name | e }}</td>
             </tr>
             <tr>
                 <td>Datum:</td>
@@ -84,25 +86,25 @@
             {% if cv.kundennummer %}
             <tr>
                 <td>Kunden-Nr.:</td>
-                <td class="text-right">{{ cv.kundennummer }}</td>
+                <td class="text-right">{{ cv.kundennummer | e }}</td>
             </tr>
             {% endif %}
             {% if cv.ansprechpartner %}
             <tr>
                 <td>Ansprechpartner:</td>
-                <td class="text-right">{{ cv.ansprechpartner }}</td>
+                <td class="text-right">{{ cv.ansprechpartner | e }}</td>
             </tr>
             {% endif %}
             {% if company.phone_no %}
             <tr>
                 <td>Telefon:</td>
-                <td class="text-right">{{ company.phone_no }}</td>
+                <td class="text-right">{{ company.phone_no | e }}</td>
             </tr>
             {% endif %}
             {% if company.email %}
             <tr>
                 <td>E-Mail:</td>
-                <td class="text-right">{{ company.email }}</td>
+                <td class="text-right">{{ company.email | e }}</td>
             </tr>
             {% endif %}
             {% if doc.valid_till %}
@@ -122,8 +124,8 @@
 <!-- CONTENT -->
 <div id="text">
     <div id="subject">
-        <div class="titel">{{ cv.titel }}</div>
-        {% if cv.bauvorhaben %}<div>Bauvorhaben: {{ cv.bauvorhaben }}</div>{% endif %}
+        <div class="titel">{{ cv.titel | e }}</div>
+        {% if cv.bauvorhaben %}<div>Bauvorhaben: {{ cv.bauvorhaben | e }}</div>{% endif %}
     </div>
 
     {% if cv.vorbemerkung | striptags | trim %}
@@ -151,17 +153,17 @@
                 <tr class="position">
                     <td>{% if erste %}<span class="gruppe-titel">{{ g.nr }}</span><br>{% endif %}{{ p.nr }}</td>
                     <td>
-                        {%- if erste %}<span class="gruppe-titel">{{ g.titel }}</span><br>{% endif -%}
-                        <b>{{ n.item_name or n.item_code or "" }}</b>
+                        {%- if erste %}<span class="gruppe-titel">{{ g.titel | e }}</span><br>{% endif -%}
+                        <b>{{ (n.item_name or n.item_code or "") | e }}</b>
                         {%- if p.art %}<br><span class="positionsart">{{ p.art }} – nicht in der Angebotssumme enthalten</span>{% endif %}
                         <span class="position-text">
-                        {%- if n.description and (n.description | striptags | trim) != ((n.item_name or "") | trim) %}
-                            <br>{{ n.description }}
+                        {%- if p.langtext %}
+                            <br>{{ p.langtext }}
                         {%- endif %}
                         </span>
                     </td>
                     <td class="text-right">{% if erste %}<br>{% endif %}{{ n.get_formatted("qty") }}</td>
-                    <td>{% if erste %}<br>{% endif %}{{ _(n.uom or "") }}</td>
+                    <td>{% if erste %}<br>{% endif %}{{ _(n.uom or "") | e }}</td>
                     <td class="text-right">{% if erste %}<br>{% endif %}{{ n.get_formatted("rate") }}</td>
                     <td class="text-right">{% if erste %}<br>{% endif %}
                         {%- if p.in_summe -%}
@@ -175,7 +177,7 @@
             {%- if cv.mit_gruppen %}
                 <tr class="zwischensumme">
                     <td></td>
-                    <td colspan="4">Summe {{ g.nr }} {{ g.titel }}</td>
+                    <td colspan="4">Summe {{ g.nr }} {{ g.titel | e }}</td>
                     <td class="text-right">{{ frappe.utils.fmt_money(g.summe, currency=doc.currency) }}</td>
                 </tr>
             {%- endif %}
@@ -190,7 +192,7 @@
             {% for g in cv.gruppen %}
             <tr>
                 <td style="width: 8%">{{ g.nr }}</td>
-                <td style="width: 76%">{{ g.titel }}</td>
+                <td style="width: 76%">{{ g.titel | e }}</td>
                 <td style="width: 16%" class="text-right">{{ frappe.utils.fmt_money(g.summe, currency=doc.currency) }}</td>
             </tr>
             {% endfor %}
@@ -222,14 +224,14 @@
             {% for tax_row in doc.taxes %}
                 {% if tax_row.tax_amount or print_settings.print_taxes_with_zero_amount %}
                 <tr>
-                    <td>{{ tax_row.description or tax_row.account_head or "" }}</td>
+                    <td>{{ (tax_row.description or tax_row.account_head or "") | e }}</td>
                     <td class="text-right">{{ tax_row.get_formatted("tax_amount") }}</td>
                 </tr>
                 {% endif %}
             {% endfor %}
             {% if doc.tax_exemption_reason %}
             <tr>
-                <td>{{ _(doc.tax_exemption_reason) }}</td>
+                <td>{{ _(doc.tax_exemption_reason) | e }}</td>
                 <td></td>
             </tr>
             {% endif %}
@@ -248,14 +250,14 @@
     {% if cv.garantiehinweis %}
     <div class="cv-block">
         <h4>Hinweise zur Gewährleistung</h4>
-        <div>{{ cv.garantiehinweis | e | replace("\n", "<br>") }}</div>
+        <div>{{ cv.garantiehinweis }}</div>
     </div>
     {% endif %}
 
     {% if doc.terms and (doc.terms | striptags | trim) %}
     <div class="cv-block">
         <h4>Zahlungsbedingungen und Gültigkeit</h4>
-        {{ doc.terms }}
+        {{ frappe.sanitize_html(doc.terms) }}
     </div>
     {% endif %}
 
@@ -266,8 +268,8 @@
             <tr>
                 <td>
                     Mit freundlichen Grüßen<br>
-                    {{ company.company_name }}
-                    <div class="unterschrift-linie">{{ cv.ansprechpartner or "Unterschrift Auftragnehmer" }}</div>
+                    {{ company.company_name | e }}
+                    <div class="unterschrift-linie">{{ (cv.ansprechpartner or "Unterschrift Auftragnehmer") | e }}</div>
                 </td>
                 <td>
                     Auftrag erteilt:

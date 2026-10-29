@@ -22,7 +22,7 @@ rechnet dieses Modul aus ``amount`` der übrigen Positionen, ihre Summe ist ``do
 from __future__ import annotations
 
 import re
-from html import unescape
+from html import escape, unescape
 
 GRUPPE_OHNE_ANGABE = "Allgemeine Leistungen"
 EVENTUAL = "Eventualposition"
@@ -105,7 +105,9 @@ def gruppiere(items) -> list[dict]:
 
 
 def html_zu_zeilen(value) -> str:
-	"""HTML (z. B. Adressanzeige mit ``<br>``) als einzeilige Adresse: „Straße 1, 12345 Ort“."""
+	"""HTML (z. B. Adressanzeige mit ``<br>``) als einzeilige Adresse: „Straße 1, 12345 Ort“.
+
+	Ergebnis ist **reiner Text** (Entities aufgelöst): im Format nur mit ``| e`` ausgeben."""
 	text = re.sub(r"<br\s*/?>|</p>|</div>", "\n", _text(value), flags=re.IGNORECASE)
 	text = unescape(re.sub(r"<[^>]+>", "", text))
 	return ", ".join(zeile.strip() for zeile in text.splitlines() if zeile.strip())
@@ -116,6 +118,24 @@ def objekt_adresse(objekt: dict | None) -> str:
 		return ""
 	ort = " ".join(teil for teil in (_text(objekt.get("plz")), _text(objekt.get("ort"))) if teil)
 	return ", ".join(teil for teil in (_text(objekt.get("strasse")), ort) if teil)
+
+
+def text_als_html(value) -> str:
+	"""Klartext (z. B. ``Small Text``) maskiert, Zeilenumbrüche als ``<br>``."""
+	return "<br>".join(escape(zeile) for zeile in _text(value).splitlines())
+
+
+def langtext(row, sanitize=None) -> str:
+	"""Langtext einer Position als bereinigtes HTML, leer wenn er nur den Kurztext wiederholt.
+
+	``sanitize``: HTML-Bereinigung (im Format ``frappe.utils.sanitize_html``); ohne wird
+	der Text als reiner Text maskiert."""
+	beschreibung = _text(row.get("description"))
+	if not beschreibung or html_zu_zeilen(beschreibung) == _text(row.get("item_name")):
+		return ""
+	if sanitize:
+		return sanitize(beschreibung)
+	return escape(beschreibung)
 
 
 def titel_und_bauvorhaben(cv_titel, adresse: str) -> tuple[str, str]:
@@ -147,12 +167,19 @@ def angebot_corevatis_daten(doc) -> dict:
 	if doc.get("owner") and doc.owner not in TECHNISCHE_BENUTZER:
 		ansprechpartner = _text(frappe.utils.get_fullname(doc.owner))
 
+	sanitize_html = frappe.utils.sanitize_html
+
 	gruppen = gruppiere(doc.get("items"))
+	for gruppe in gruppen:
+		for position in gruppe["positionen"]:
+			position["langtext"] = langtext(position["row"], sanitize_html)
+	# Ausgabe im Format: reine Texte (Titel, Bauvorhaben, Gruppen, Namen) mit „| e“,
+	# HTML-Felder (Vorbemerkung, Langtext) hier bereinigt (Security-Review 4.3)
 	return {
 		"titel": titel,
 		"bauvorhaben": bauvorhaben,
-		"vorbemerkung": _text(doc.get("cv_vorbemerkung")),
-		"garantiehinweis": _text(doc.get("cv_garantiehinweis")),
+		"vorbemerkung": sanitize_html(_text(doc.get("cv_vorbemerkung"))),
+		"garantiehinweis": text_als_html(doc.get("cv_garantiehinweis")),
 		"kundennummer": _text(doc.get("party_name")) if doc.get("quotation_to") == "Customer" else "",
 		"ansprechpartner": ansprechpartner,
 		"gruppen": gruppen,
