@@ -65,6 +65,11 @@ class TestGruppiere(unittest.TestCase):
 
 
 class TestTexte(unittest.TestCase):
+	def test_kundennummer(self):
+		self.assertEqual(ac.kundennummer({"quotation_to": "Customer", "party_name": "K-0001", "customer_name": "Feucht"}), "K-0001")
+		self.assertEqual(ac.kundennummer({"quotation_to": "Customer", "party_name": "Feucht", "customer_name": "Feucht"}), "")
+		self.assertEqual(ac.kundennummer({"quotation_to": "Lead", "party_name": "CRM-LEAD-1", "customer_name": "Feucht"}), "")
+
 	def test_titel(self):
 		self.assertEqual(ac.titel_und_bauvorhaben("Kellerabdichtung", "Weg 1, 47877 Willich"), ("Kellerabdichtung", "Weg 1, 47877 Willich"))
 		self.assertEqual(ac.titel_und_bauvorhaben(None, "Weg 1, 47877 Willich"), ("Angebot – Weg 1, 47877 Willich", ""))

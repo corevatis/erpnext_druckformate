@@ -181,6 +181,15 @@ def titel_und_bauvorhaben(cv_titel, adresse: str) -> tuple[str, str]:
 	return ("Angebot – " + adresse) if adresse else "Angebot", ""
 
 
+def kundennummer(doc) -> str:
+	"""Kundennummer = Name des Kunden-Datensatzes; nur bei Kunden (nicht bei Leads) und nur,
+	wenn er nicht einfach der Kundenname ist (Benennung nach Name)."""
+	if doc.get("quotation_to") != "Customer":
+		return ""
+	nummer = _text(doc.get("party_name"))
+	return "" if nummer == _text(doc.get("customer_name")) else nummer
+
+
 def angebot_corevatis_daten(doc) -> dict:
 	"""Jinja-Methode für „Angebot Corevatis“: alles, was über die Standardfelder hinausgeht."""
 	import frappe
@@ -213,7 +222,7 @@ def angebot_corevatis_daten(doc) -> dict:
 		"bedingungen": html_sicher(doc.get("terms")),
 		"anschrift": html_sicher(doc.get("address_display")),
 		"garantiehinweis": text_als_html(doc.get("cv_garantiehinweis")),
-		"kundennummer": _text(doc.get("party_name")) if doc.get("quotation_to") == "Customer" else "",
+		"kundennummer": kundennummer(doc),
 		"ansprechpartner": ansprechpartner,
 		"gruppen": gruppen,
 		"mit_gruppen": bool(gruppen and gruppen[0]["nr"]),

@@ -17,12 +17,15 @@
     }
     .print-format #subject { margin-bottom: 1em; }
     .print-format #subject .titel { font-size: 11pt; font-weight: bold; }
-    .print-format .cv-block { margin-bottom: 1em; page-break-inside: avoid; }
+    .print-format .cv-block { margin-top: 1em; page-break-inside: avoid; }
+    .print-format .cv-text { font-size: 8.5pt; }
+    .print-format .cv-text p { margin: 0 0 0.4em 0; }
     .print-format .cv-block h4 { font-size: 10pt; font-weight: bold; margin: 0 0 0.3em 0; }
-    .print-format .cv-vorbemerkung { margin-bottom: 1em; }
+    .print-format .cv-vorbemerkung { margin-bottom: 1em; font-size: 9pt; }
+    .print-format .cv-vorbemerkung p { margin: 0 0 0.4em 0; }
     .print-format table.cv-positionen th { text-align: left; }
     .print-format table.cv-positionen th.text-right { text-align: right; }
-    .print-format table.cv-positionen td { vertical-align: top; padding-top: 3px; padding-bottom: 3px; }
+    .print-format table.cv-positionen td { vertical-align: top; padding: 2px 3px; }
     .print-format table.cv-positionen tr.position td { border-bottom: 0.5pt solid #ccc; }
     .print-format .gruppe-titel { font-weight: bold; text-decoration: underline; }
     .print-format .positionsart { font-style: italic; }
@@ -135,12 +138,12 @@
     <table class="w-100 text-small cv-positionen">
         <thead class="black-border">
             <tr>
-                <th style="width: 8%">Pos.</th>
-                <th style="width: 47%">Beschreibung</th>
+                <th style="width: 6%">Pos.</th>
+                <th style="width: 51%">Beschreibung</th>
                 <th style="width: 9%" class="text-right">Menge</th>
-                <th style="width: 7%">Einheit</th>
+                <th style="width: 6%">Einh.</th>
                 <th style="width: 13%" class="text-right">Einzelpreis</th>
-                <th style="width: 16%" class="text-right">Gesamtpreis</th>
+                <th style="width: 15%" class="text-right">Gesamtpreis</th>
             </tr>
         </thead>
         <tbody>
@@ -191,9 +194,9 @@
         <table class="w-100 text-small cv-summen">
             {% for g in cv.gruppen %}
             <tr>
-                <td style="width: 8%">{{ g.nr }}</td>
-                <td style="width: 76%">{{ g.titel | e }}</td>
-                <td style="width: 16%" class="text-right">{{ frappe.utils.fmt_money(g.summe, currency=doc.currency) }}</td>
+                <td style="width: 6%">{{ g.nr }}</td>
+                <td style="width: 79%">{{ g.titel | e }}</td>
+                <td style="width: 15%" class="text-right">{{ frappe.utils.fmt_money(g.summe, currency=doc.currency) }}</td>
             </tr>
             {% endfor %}
         </table>
@@ -203,8 +206,8 @@
     <table class="w-100 text-small cv-summen">
         {% if doc.discount_amount %}
         <tr>
-            <td style="width: 84%">Summe der Positionen</td>
-            <td style="width: 16%" class="text-right">{{ doc.get_formatted("total") }}</td>
+            <td style="width: 85%">Summe der Positionen</td>
+            <td style="width: 15%" class="text-right">{{ doc.get_formatted("total") }}</td>
         </tr>
         <tr>
             <td>Nachlass{% if doc.additional_discount_percentage %} {{ doc.get_formatted("additional_discount_percentage") }} %{% endif %}</td>
@@ -212,7 +215,7 @@
         </tr>
         {% endif %}
         <tr>
-            <td style="width: 84%"><b>Nettosumme</b></td>
+            <td style="width: 85%"><b>Nettosumme</b></td>
             <td style="width: 16%" class="text-right"><b>{{ doc.get_formatted("net_total") }}</b></td>
         </tr>
         {% if doc.tax_category == "Reverse Charge" %}
@@ -248,14 +251,14 @@
     {% endif %}
 
     {% if cv.garantiehinweis %}
-    <div class="cv-block">
+    <div class="cv-block cv-text">
         <h4>Hinweise zur Gewährleistung</h4>
         <div>{{ cv.garantiehinweis }}</div>
     </div>
     {% endif %}
 
     {% if cv.bedingungen | striptags | trim %}
-    <div class="cv-block">
+    <div class="cv-block cv-text">
         <h4>Zahlungsbedingungen und Gültigkeit</h4>
         {{ cv.bedingungen }}
     </div>
