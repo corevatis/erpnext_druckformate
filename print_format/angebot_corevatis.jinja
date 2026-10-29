@@ -17,7 +17,7 @@
     }
     .print-format #subject { margin-bottom: 1em; }
     .print-format #subject .titel { font-size: 11pt; font-weight: bold; }
-    .print-format .cv-block { margin-top: 1em; page-break-inside: avoid; }
+    .print-format .cv-block { margin-top: 0.8em; page-break-inside: avoid; }
     .print-format .cv-text { font-size: 8.5pt; }
     .print-format .cv-text p { margin: 0 0 0.4em 0; }
     .print-format .cv-block h4 { font-size: 10pt; font-weight: bold; margin: 0 0 0.3em 0; }
@@ -33,9 +33,10 @@
     .print-format table.cv-summen { margin-top: 0.5em; page-break-inside: avoid; }
     .print-format table.cv-summen td { padding: 1px 3px; }
     .print-format table.cv-summen tr.brutto td { border-top: solid black 1px; border-bottom: double black 3px; font-weight: bold; }
-    .print-format .unterschriften { width: 100%; margin-top: 1.5em; page-break-inside: avoid; }
+    .print-format .unterschriften { width: 100%; margin-top: 0.6em; page-break-inside: avoid; }
     .print-format .unterschriften td { width: 50%; vertical-align: bottom; padding-right: 10mm; }
-    .print-format .unterschrift-linie { border-top: 0.5pt solid black; margin-top: 12mm; padding-top: 1mm; font-size: 8pt; }
+    .print-format .unterschrift-linie { border-top: 0.5pt solid black; margin-top: 9mm; padding-top: 1mm; font-size: 8pt; }
+    .print-format .schluss p { margin: 0; }
 </style>
 
 {%- set cv = angebot_corevatis_daten(doc) -%}
@@ -264,7 +265,7 @@
     </div>
     {% endif %}
 
-    <div class="cv-block">
+    <div class="cv-block schluss">
         <p>Wir würden uns freuen, den Auftrag ausführen zu dürfen. Für Rückfragen stehen wir Ihnen gern
             zur Verfügung.</p>
         <table class="unterschriften">
