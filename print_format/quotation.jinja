@@ -37,14 +37,15 @@
         </div>
         {% endif %}
         {{ doc.customer_name }}<br />
-        {% if contact %}
+        {#- Ansprechpartner nur, wenn er nicht schon der Kunde ist (Privatkunde) #}
+        {% if contact and ((contact.first_name or "") ~ " " ~ (contact.last_name or "")) | trim != (doc.customer_name or "") | trim %}
                 {%- if contact.salutation -%}
                     {{ contact.salutation }}
                 {%- endif %}
                 {%- if contact.salutation in ["Hr.", "Herr"] %}n{% endif %}
                 {{ contact.first_name }} {{ contact.last_name }}<br>
         {% endif %}
-        {{ doc.address_display }}
+        {{ doc.address_display or "" }}
     </div>
 
     <div id="contact">
