@@ -30,6 +30,11 @@
     .print-format .gruppe-titel { font-weight: bold; text-decoration: underline; }
     .print-format .positionsart { font-style: italic; }
     .print-format tr.zwischensumme td { font-weight: bold; padding-bottom: 8px; }
+    {#- Letzte Position einer Gruppe und Zwischensumme in einer äußeren Zeile (innere Tabelle,
+        gleiche Spaltenbreiten): „tr { page-break-inside: avoid }“ hält beide zusammen, die
+        Zwischensumme steht nie allein oben auf der Folgeseite (Review Epic 4 P-2). #}
+    .print-format table.cv-positionen td.gruppe-ende { padding: 0; border: none; }
+    .print-format table.cv-gruppe-ende { width: 100%; margin: 0; }
     .print-format table.cv-summen { margin-top: 0.5em; page-break-inside: avoid; }
     .print-format table.cv-summen td { padding: 1px 3px; }
     .print-format table.cv-summen tr.brutto td { border-top: solid black 1px; border-bottom: double black 3px; font-weight: bold; }
@@ -148,12 +153,11 @@
             </tr>
         </thead>
         <tbody>
-        {%- for g in cv.gruppen %}
-            {%- for p in g.positionen %}
+        {%- macro spalten() -%}
+            <colgroup><col style="width: 6%"><col style="width: 51%"><col style="width: 9%"><col style="width: 6%"><col style="width: 13%"><col style="width: 15%"></colgroup>
+        {%- endmacro -%}
+        {%- macro position_zeile(p, g, erste) -%}
                 {%- set n = p.row %}
-                {%- set erste = loop.first and g.titel %}
-                {#- Gruppentitel steht in der ersten Positionszeile: eine eigene Zeile könnte
-                    allein unten auf der Seite stehen bleiben (Zeilen werden nicht getrennt). #}
                 <tr class="position">
                     <td>{% if erste %}<span class="gruppe-titel">{{ g.nr }}</span><br>{% endif %}{{ p.nr }}</td>
                     <td>
@@ -177,14 +181,27 @@
                         {%- endif -%}
                     </td>
                 </tr>
+        {%- endmacro -%}
+        {%- for g in cv.gruppen %}
+            {%- for p in g.positionen %}
+                {#- Gruppentitel steht in der ersten Positionszeile: eine eigene Zeile könnte
+                    allein unten auf der Seite stehen bleiben (Zeilen werden nicht getrennt). #}
+                {%- set erste = loop.first and g.titel %}
+                {%- if cv.mit_gruppen and loop.last %}
+                <tr class="gruppe-ende"><td colspan="6" class="gruppe-ende">
+                    <table class="text-small cv-positionen cv-gruppe-ende">{{ spalten() }}
+                        {{ position_zeile(p, g, erste) }}
+                        <tr class="zwischensumme">
+                            <td></td>
+                            <td colspan="4">Summe {{ g.nr }} {{ g.titel | e }}</td>
+                            <td class="text-right">{{ frappe.utils.fmt_money(g.summe, currency=doc.currency) }}</td>
+                        </tr>
+                    </table>
+                </td></tr>
+                {%- else %}
+                {{ position_zeile(p, g, erste) }}
+                {%- endif %}
             {%- endfor %}
-            {%- if cv.mit_gruppen %}
-                <tr class="zwischensumme">
-                    <td></td>
-                    <td colspan="4">Summe {{ g.nr }} {{ g.titel | e }}</td>
-                    <td class="text-right">{{ frappe.utils.fmt_money(g.summe, currency=doc.currency) }}</td>
-                </tr>
-            {%- endif %}
         {%- endfor %}
         </tbody>
     </table>
@@ -204,16 +221,31 @@
     </div>
     {% endif %}
 
+    {#- Nachlass (Review Epic 4 P-1): auf „Net Total“ vor der Steuer; auf „Grand Total“ verteilt
+        ERPNext ihn auf die Nettobeträge (Netto = Summe − Netto-Anteil, Steuer darauf) - dann
+        steht der Netto-Anteil vor der Nettosumme und der Bruttonachlass als Hinweis; ein
+        Barzahlungs-/Sondernachlass auf „Grand Total“ mindert nur das Brutto und steht nach der
+        Steuer. So geht jede Zeile rechnerisch auf. #}
+    {%- set nachlass_text = "Nachlass" ~ ((" " ~ doc.get_formatted("additional_discount_percentage") ~ " %") if doc.additional_discount_percentage else "") %}
+    {%- set nachlass_brutto = doc.discount_amount and doc.apply_discount_on == "Grand Total" %}
+    {%- set nachlass_nach_steuer = nachlass_brutto and doc.get("is_cash_or_non_trade_discount") %}
     <table class="w-100 text-small cv-summen">
-        {% if doc.discount_amount %}
+        {% if doc.discount_amount and not nachlass_nach_steuer %}
         <tr>
             <td style="width: 85%">Summe der Positionen</td>
             <td style="width: 15%" class="text-right">{{ doc.get_formatted("total") }}</td>
         </tr>
+        {% if nachlass_brutto %}
         <tr>
-            <td>Nachlass{% if doc.additional_discount_percentage %} {{ doc.get_formatted("additional_discount_percentage") }} %{% endif %}</td>
+            <td>{{ nachlass_text }} (Netto-Anteil; {{ doc.get_formatted("discount_amount") }} auf die Bruttosumme)</td>
+            <td class="text-right">− {{ frappe.utils.fmt_money(doc.total - doc.net_total, currency=doc.currency) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td>{{ nachlass_text }}</td>
             <td class="text-right">− {{ doc.get_formatted("discount_amount") }}</td>
         </tr>
+        {% endif %}
         {% endif %}
         <tr>
             <td style="width: 85%"><b>Nettosumme</b></td>
@@ -239,6 +271,16 @@
                 <td></td>
             </tr>
             {% endif %}
+        {% endif %}
+        {% if nachlass_nach_steuer %}
+        <tr>
+            <td>Summe brutto vor Nachlass</td>
+            <td class="text-right">{{ frappe.utils.fmt_money(doc.grand_total + doc.discount_amount, currency=doc.currency) }}</td>
+        </tr>
+        <tr>
+            <td>{{ nachlass_text }}</td>
+            <td class="text-right">− {{ doc.get_formatted("discount_amount") }}</td>
+        </tr>
         {% endif %}
         <tr class="brutto">
             <td>Angebotssumme brutto</td>
