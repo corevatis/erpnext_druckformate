@@ -158,3 +158,40 @@ body, html {
   width: 100%;
   height: 100%;
 }
+
+/* --- Corevatis: Seitenumbruch und Browser-Druck ---
+   Eine Position (Kurztext, Langtext, Menge, Preis) ist genau eine Tabellenzeile; die
+   Regel "tr { page-break-inside: avoid }" oben hält sie auf einer Seite. Block-Elemente
+   in der Zeile (Langtext aus dem Text-Editor: <div class="ql-editor"><p>…) bringen die
+   Umbruchberechnung von wkhtmltopdf durcheinander (Lücken mitten auf der Seite), daher
+   inline mit Zeilenumbruch nach jedem Absatz. */
+.print-format tr.position td div,
+.print-format tr.position td p {
+  display: inline;
+  margin: 0;
+}
+
+.print-format tr.position td p:after {
+  content: "\A";
+  white-space: pre;
+}
+
+/* Beträge nicht umbrechen ("€" und Zahl in einer Zeile) */
+.print-format table:not(.footer-table) td.text-right,
+.print-format table:not(.footer-table) th.text-right {
+  white-space: nowrap;
+}
+
+/* #footer-html gibt es nur im Browser-Druck (im PDF zieht Frappe es als
+   wkhtmltopdf-Fußzeile heraus); dort gibt es keine Seitenzahlen. */
+.print-format #footer-html #pagenum {
+  display: none;
+}
+
+/* Browser-Druck (/printview): Seitenränder wie im PDF. Links/rechts 0, weil das
+   Layout die DIN-5008-Ränder selbst setzt; wkhtmltopdf nimmt die Ränder aus
+   .print-format und ignoriert @page. */
+@page {
+  size: A4 portrait;
+  margin: 10mm 0 20mm 0;
+}

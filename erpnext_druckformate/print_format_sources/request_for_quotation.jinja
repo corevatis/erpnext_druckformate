@@ -13,7 +13,7 @@
 
 {% set supplier = frappe.get_doc("Supplier", doc.vendor) %}
 {% set supplier_addresses = frappe.get_all("Dynamic Link", filters={"link_doctype": "Supplier", "link_name": supplier.name, "parenttype": "Address"}, fields=["parent"]) %}
-{% set pay_addr = frappe.get_doc("Address", supplier_addresses[0]["parent"]) %}
+{% set pay_addr = frappe.get_doc("Address", supplier_addresses[0]["parent"]) if supplier_addresses else None %}
 
 <!-- HEAD -->
 <div id="header">
@@ -29,17 +29,19 @@
                 <p>{{ bill_addr.address_title }} &#183; {{ bill_addr.address_line1 }} &#183;
                 {% if bill_addr.address_line2 %}{{ bill_addr.address_line2 }}<br>{% endif %}
                 {{ bill_addr.pincode }} {{ bill_addr.city }}
-                {% if bill_addr.country != pay_addr.country -%}
+                {% if pay_addr and bill_addr.country != pay_addr.country -%}
                         &#183; {{ bill_addr.country | upper }}
                 {%- endif %}
                 </p>
             {% endif %}
         </div>
         {{ supplier.supplier_name }}<br />
+        {% if pay_addr %}
         {% if pay_addr.address_line1 %}{{ pay_addr.address_line1 }}<br>{% endif %}
         {% if pay_addr.address_line2 %}{{ pay_addr.address_line2 }}<br>{% endif %}
         {{ pay_addr.pincode }} {{ pay_addr.city }}
-        {% if bill_addr and pay_addr.country != bill_addr.country -%}
+        {% endif %}
+        {% if pay_addr and bill_addr and pay_addr.country != bill_addr.country -%}
             <br>{{ pay_addr.country | upper }}
         {%- endif %}
     </div>
@@ -97,9 +99,21 @@
 
         <tbody>
             {% for n in doc.items %}
-                <tr>
+                <tr class="position">
                     <td>{{ loop.index }}</td>
-                    <td><b>{{ _(n.item_name) }}</b></td>
+                    <td>
+                        <b>{{ _(n.item_name) }}</b>
+                        <span class="position-text">
+                        {% if n.description and (n.description | striptags | trim) != (n.item_name | trim) %}
+                            <br>{{ n.description }}
+                        {% endif %}
+                        <br>{{ _("Our Part No.: {0}").format(n.item_code) }}
+                        {% if n.supplier_part_no %}
+                            <br>
+                            {{ _("Your Part No.: {0}").format(n.supplier_part_no) }}
+                        {% endif %}
+                        </span>
+                    </td>
                     <td>{{ _(n.uom) if not print_settings.print_uom_after_quantity else '&nbsp;'}}</td>
                     <td>
                         {{ n.get_formatted("qty") }}
@@ -107,21 +121,6 @@
                             {{ _(n.uom) }}
                         {% endif %}
                     </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td colspan="2">
-                        {% if (n.description | striptags) != n.item_name %}
-                            {{ n.description }}<br>
-                        {% endif %}
-
-                        {{ _("Our Part No.: {0}").format(n.item_code) }}
-                        {% if n.supplier_part_no %}
-                            <br>
-                            {{ _("Your Part No.: {0}").format(n.supplier_part_no) }}
-                        {% endif %}
-                    </td>
-                    <td></td>
                 </tr>
             {% endfor %}
         </tbody>

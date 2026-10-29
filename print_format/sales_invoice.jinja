@@ -37,7 +37,8 @@
         </div>
         {% endif %}
         {{ doc.customer_name }}<br />
-        {% if contact %}
+        {#- Ansprechpartner nur, wenn er nicht schon der Kunde ist (Privatkunde) #}
+        {% if contact and ((contact.first_name or "") ~ " " ~ (contact.last_name or "")) | trim != (doc.customer_name or "") | trim %}
                 {%- if contact.salutation -%}
                     {{ contact.salutation }}
                 {%- endif %}
@@ -127,35 +128,37 @@
         <thead class="black-border">
             <tr>
                 <th style="width: 5%">{{ _("Sr") }}</th>
-                <th style="width: 45%">
+                <th style="width: 52%">
                     {{ _("Description") }}</th>
-                <th style="width: 10%">{{ _("Unit") if not print_settings.print_uom_after_quantity else '&nbsp;'}}</th>
-                <th style="width: 10%">{{ _("Qty") }}</th>
-                <th style="width: 12%">{{ _("Price") }}</th>
+                <th style="width: 8%">{{ _("Unit") if not print_settings.print_uom_after_quantity else '&nbsp;'}}</th>
+                <th style="width: 8%" class="text-right">{{ _("Qty") }}</th>
+                <th style="width: 12%" class="text-right">{{ _("Price") }}</th>
                 <!-- <th style="width: 15%">{{ _("Discount") }}</th> -->
-                <th style="width: 18%" class="text-right">{{ _("Amount") }}</th>
+                <th style="width: 15%" class="text-right">{{ _("Amount") }}</th>
             </tr>
         </thead>
         <tbody>
             {% for n in doc.items %}
-                <tr>
+                <tr class="position">
                     <td>{{ loop.index }}</td>
-                    <td><b>{{ _(n.item_name) }}</b></td>
-                    <td>{{ _(n.uom) if not print_settings.print_uom_after_quantity else '&nbsp;'}}</td>
                     <td>
+                        <b>{{ _(n.item_name) }}</b>
+                        <span class="position-text">
+                        {% if n.description and (n.description | striptags | trim) != (n.item_name | trim) %}
+                            <br>{{ n.description }}
+                        {% endif %}
+                        </span>
+                    </td>
+                    <td>{{ _(n.uom) if not print_settings.print_uom_after_quantity else '&nbsp;'}}</td>
+                    <td class="text-right">
                         {{ n.get_formatted("qty") }}
                         {% if print_settings.print_uom_after_quantity %}
                             {{ _(n.uom) }}
                         {% endif %}
                     </td>
-                    <td>{{ n.get_formatted("rate") }}</td>
+                    <td class="text-right">{{ n.get_formatted("rate") }}</td>
                     <!-- <td>{{ n.get_formatted("discount_amount") }}</td> -->
                     <td class="text-right">{{ n.get_formatted("amount") }}</td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td colspan="4">{{ n.description }}</td>
-                    <td></td>
                 </tr>
             {% endfor %}
         </tbody>
