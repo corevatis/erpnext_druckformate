@@ -175,6 +175,13 @@ body, html {
   content: "\A";
   white-space: pre;
 }
+/* Grundlage je Position (Wände aus dem Aufmaß, corevatis_erpnext#57): eigene Zeile unter dem Langtext.
+   Bleibt inline (siehe oben), bekommt aber den Umbruch auch davor - der Langtext des Items ist oft
+   reiner Text ohne <p>, dann klebte „Grundlage: …“ am letzten Satz. */
+.print-format tr.position td p.cv-grundlage:before {
+  content: "\A";
+  white-space: pre;
+}
 
 /* Beträge nicht umbrechen ("€" und Zahl in einer Zeile) */
 .print-format table:not(.footer-table) td.text-right,
