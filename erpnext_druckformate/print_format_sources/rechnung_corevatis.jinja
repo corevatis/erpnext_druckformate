@@ -100,7 +100,7 @@
             {% if cv.auftrag %}
             <tr>
                 <td>Auftrag:</td>
-                <td class="text-right">{{ cv.auftrag.name | e }}{% if cv.auftrag.transaction_date %} vom {{ frappe.utils.formatdate(cv.auftrag.transaction_date, "dd.MM.yyyy") }}{% endif %}</td>
+                <td class="text-right">{{ cv.auftrag.name | e }}</td>
             </tr>
             {% endif %}
             {% if doc.po_no %}

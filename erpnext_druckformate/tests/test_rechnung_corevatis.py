@@ -60,7 +60,7 @@ class TestRechnungsart(unittest.TestCase):
 		auftrag = {"name": "AB-2026-00008", "cv_titel": "Kellerabdichtung Musterweg 3", "transaction_date": "2026-10-20"}
 		self.assertEqual(
 			rc.betreff({"cv_abschlag": 1, "cv_auftrag": "AB-2026-00008", "cv_abschlag_nr": 1}, auftrag),
-			("Abschlagsrechnung Nr. 1 zum Auftrag AB-2026-00008", "Kellerabdichtung Musterweg 3"),
+			("Abschlagsrechnung Nr. 1 zum Auftrag AB-2026-00008", "Kellerabdichtung Musterweg 3 (Auftrag vom 20.10.2026)"),
 		)
 		self.assertEqual(
 			rc.betreff({"cv_schlussrechnung": 1, "cv_auftrag": "AB-2026-00008"}, {"name": "AB-2026-00008", "transaction_date": date(2026, 10, 20)}),
