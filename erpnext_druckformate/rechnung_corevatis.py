@@ -103,8 +103,10 @@ def betreff(doc, auftrag: dict | None, art: str | None = None) -> tuple[str, str
 	else:
 		return art, ""
 	unterzeile = _text((auftrag or {}).get("cv_titel"))
-	if not unterzeile and (auftrag or {}).get("transaction_date"):
-		unterzeile = f"Auftrag vom {_datum(auftrag['transaction_date'])}"
+	datum = _datum((auftrag or {}).get("transaction_date"))
+	if datum:
+		# der Infoblock nennt nur die Auftragsnummer (schmale Spalte), das Datum steht hier
+		unterzeile = f"{unterzeile} (Auftrag vom {datum})" if unterzeile else f"Auftrag vom {datum}"
 	return titel, unterzeile
 
 
