@@ -35,6 +35,15 @@
 > Browser-Druck (`/printview`): `@page`-Ränder wie im PDF, keine leere Zeile „Seite von“.
 > Angebot: „Gültig bis“ nur, wenn gesetzt; Angebotsanfrage: Lieferant ohne Adresse druckbar.
 
+> **Corevatis-Formate** (Handwerker-MVP, neben den DIN-5008-Standardformaten): „Angebot Corevatis“
+> (Aufgabe 4.3, `angebot_corevatis.py`: Gruppen nach Raum/Bauteil, Eventual-/Alternativpositionen,
+> Textbausteine), „Rechnung Corevatis“ (7.3, `rechnung_corevatis.py`: Abschlags- und Schlussrechnung
+> mit Abschlagsübersicht aus `cv_abschlaege`, § 35a-Block aus `cv_lohnanteil_*`, Leistungszeitraum,
+> Steuernummer, Zahlungsziel und Bankverbindung aus dem Standard-Bankkonto der Firma) und „Mahnung
+> Corevatis“ (7.5, `mahnung_corevatis.py`: Mahnstufe als Betreff, offene Rechnungen mit Tagen
+> überfällig, Mahngebühr, Zahlungsfrist). Die `cv_*`-Felder liefert `corevatis_erpnext`; ohne die
+> App drucken die Formate wie ihre Standardvorlagen. Tests ohne Site: `tests/test_*_corevatis.py`.
+
 > Originally developed for ERPNext `version-13`, also tested against `version-15`. Other versions may need minor tweaks.
 
 * `letter_head.jinja` — HTML and CSS for the footer.

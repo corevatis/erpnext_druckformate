@@ -17,11 +17,13 @@ NAMES = (
 	"Angebot",
 	"Angebot Corevatis",
 	"Ausgangsrechnung",
+	"Rechnung Corevatis",
 	"Auftragsbestätigung",
 	"Lieferschein",
 	"Angebotsanfrage",
 	"Bestellung",
 	"Mahnung",
+	"Mahnung Corevatis",
 )
 
 
@@ -163,4 +165,6 @@ class TestAngebotCorevatisSync(IntegrationTestCase):
 	def test_jinja_methode_registriert(self):
 		from frappe.utils.jinja import get_jenv
 
-		self.assertIn("angebot_corevatis_daten", get_jenv().globals)
+		globals_ = get_jenv().globals
+		for methode in ("angebot_corevatis_daten", "rechnung_corevatis_daten", "mahnung_corevatis_daten"):
+			self.assertIn(methode, globals_)

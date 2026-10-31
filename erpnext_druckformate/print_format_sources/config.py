@@ -34,6 +34,12 @@ PRINT_FORMATS: dict[str, dict] = {
 		"DocType": "Sales Invoice",
 		"template": "sales_invoice.jinja",
 	},
+	# Corevatis (Aufgabe 7.3, Handwerker#50): Abschlags-/Schlussrechnung mit Abschlagsübersicht,
+	# § 35a-Block, Pflichtangaben; Daten aus erpnext_druckformate/rechnung_corevatis.py
+	"Rechnung Corevatis": {
+		"DocType": "Sales Invoice",
+		"template": "rechnung_corevatis.jinja",
+	},
 	"Auftragsbestätigung": {
 		"DocType": "Sales Order",
 		"template": "sales_order.jinja",
@@ -53,5 +59,11 @@ PRINT_FORMATS: dict[str, dict] = {
 	"Mahnung": {
 		"DocType": "Dunning",
 		"template": "dunning.jinja",
+	},
+	# Corevatis (Aufgabe 7.5, Handwerker#77): Mahnung in Handwerkersprache;
+	# Daten aus erpnext_druckformate/mahnung_corevatis.py
+	"Mahnung Corevatis": {
+		"DocType": "Dunning",
+		"template": "mahnung_corevatis.jinja",
 	},
 }

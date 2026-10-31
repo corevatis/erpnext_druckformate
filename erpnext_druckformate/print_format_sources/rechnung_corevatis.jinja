@@ -1,0 +1,460 @@
+{#- Rechnung Corevatis (Aufgabe 7.3, Handwerker#50): Rechnung nach DIN 5008 Form B für
+    Handwerksbetriebe - Abschlagsrechnung, Schlussrechnung mit Abschlagsübersicht, gewöhnliche
+    Rechnung und Gutschrift. Pflichtangaben § 14 UStG (Steuernummer, Leistungszeitraum, fortlaufende
+    Nummer, Steuerausweis), § 35a-Block (Lohnanteil), Zahlungsziel und Bankverbindung aus den
+    Firmendaten. Daten über rechnung_corevatis_daten(doc) (erpnext_druckformate/rechnung_corevatis.py).
+    Ausgabe: Texte immer mit „| e“, HTML-Felder (Langtext, Bedingungen, Adressanzeige) nur über
+    html_sicher (nh3, enge Allowlist) - nie roh. Layout und Seitenumbruch wie „Angebot Corevatis“
+    (eine Tabellenzeile je Position, siehe print_formats.css). -#}
+<style>
+    .print-format {
+        margin-left: 0mm;
+        margin-right: 0mm;
+        margin-top: 10mm;
+        margin-bottom: 45mm;
+        font-size: 10pt;
+    }
+    .print-format #subject { margin-bottom: 1em; }
+    .print-format #subject .titel { font-size: 11pt; font-weight: bold; }
+    .print-format .cv-block { margin-top: 0.8em; page-break-inside: avoid; }
+    .print-format .cv-text { font-size: 8.5pt; }
+    .print-format .cv-text p { margin: 0 0 0.4em 0; }
+    .print-format .cv-block h4 { font-size: 10pt; font-weight: bold; margin: 0 0 0.3em 0; }
+    .print-format .cv-einleitung { margin-bottom: 0.8em; }
+    .print-format table.cv-positionen th { text-align: left; }
+    .print-format table.cv-positionen th.text-right { text-align: right; }
+    .print-format table.cv-positionen td { vertical-align: top; padding: 2px 3px; }
+    .print-format table.cv-positionen tr.position td { border-bottom: 0.5pt solid #ccc; }
+    .print-format .positionsart { font-style: italic; }
+    .print-format table.cv-summen { margin-top: 0.5em; page-break-inside: avoid; }
+    .print-format table.cv-summen td { padding: 1px 3px; }
+    .print-format table.cv-summen tr.brutto td { border-top: solid black 1px; border-bottom: double black 3px; font-weight: bold; }
+    .print-format table.cv-summen tr.zwischen td { border-top: solid black 1px; font-weight: bold; }
+    .print-format table.cv-abschlaege { margin-top: 0.3em; page-break-inside: avoid; }
+    .print-format table.cv-abschlaege th { text-align: left; font-weight: normal; font-style: italic; background: none; }
+    .print-format table.cv-abschlaege th.text-right { text-align: right; }
+    .print-format table.cv-abschlaege td { padding: 1px 3px; }
+    .print-format table.cv-abschlaege tr.summe td { border-top: 0.5pt solid black; font-weight: bold; }
+    .print-format .cv-zahlung { margin-top: 1em; page-break-inside: avoid; }
+    .print-format .cv-zahlung table td { padding: 0 8px 0 0; }
+    .print-format .cv-35a { border: 0.5pt solid black; padding: 4px 6px; margin-top: 0.8em; page-break-inside: avoid; }
+    .print-format .schluss p { margin: 0; }
+</style>
+
+{%- set cv = rechnung_corevatis_daten(doc) -%}
+{%- set company = frappe.get_doc("Company", doc.company) -%}
+{%- set cmp_addr = frappe.get_doc("Address", doc.company_address) if doc.company_address else None -%}
+{%- set pay_addr = frappe.get_doc("Address", doc.customer_address) if doc.customer_address else None -%}
+{%- set contact = frappe.get_doc("Contact", doc.contact_person) if doc.contact_person else None -%}
+{%- set s = cv.summen -%}
+{%- set steuer_text = (doc.taxes[0].description if doc.taxes and doc.taxes[0].description else "Umsatzsteuer") -%}
+
+<!-- HEAD -->
+<div id="header">
+    <div class="letter-head">
+        {{ letter_head }}
+    </div>
+</div>
+
+<div class="contact-row">
+    <div id="address">
+        {% if cmp_addr %}
+        <div id="sender">
+            <p>{{ (cmp_addr.address_title or company.company_name) | e }} &#183; {{ (cmp_addr.address_line1 or "") | e }} &#183;
+                {% if cmp_addr.address_line2 %}{{ cmp_addr.address_line2 | e }} <br>{% endif %}
+                {{ (cmp_addr.pincode or "") | e }} {{ (cmp_addr.city or "") | e }}
+                {% if pay_addr and (cmp_addr.country != pay_addr.country) -%}
+                    &#183; {{ (cmp_addr.country or "") | upper | e }}
+                {%- endif %}
+            </p>
+        </div>
+        {% endif %}
+        {{ (doc.customer_name or "") | e }}<br />
+        {#- Ansprechpartner nur, wenn er nicht schon der Kunde ist (Privatkunde) #}
+        {% if contact and ((contact.first_name or "") ~ " " ~ (contact.last_name or "")) | trim != (doc.customer_name or "") | trim %}
+                {%- if contact.salutation -%}
+                    {{ contact.salutation | e }}
+                {%- endif %}
+                {%- if contact.salutation in ["Hr.", "Herr"] %}n{% endif %}
+                {{ (contact.first_name or "") | e }} {{ (contact.last_name or "") | e }}<br>
+        {% endif %}
+        {{ cv.anschrift }}
+    </div>
+
+    <div id="contact">
+        <table class="w-100 text-small">
+            <tr>
+                <td>{% if cv.art == "Gutschrift" %}Gutschrift-Nr.:{% else %}Rechnungs-Nr.:{% endif %}</td>
+                <td class="text-right">{{ doc.name | e }}</td>
+            </tr>
+            <tr>
+                <td>Datum:</td>
+                <td class="text-right">{{ frappe.utils.formatdate(doc.posting_date, "dd.MM.yyyy") }}</td>
+            </tr>
+            {% if cv.kundennummer %}
+            <tr>
+                <td>Kunden-Nr.:</td>
+                <td class="text-right">{{ cv.kundennummer | e }}</td>
+            </tr>
+            {% endif %}
+            {% if cv.auftrag %}
+            <tr>
+                <td>Auftrag:</td>
+                <td class="text-right">{{ cv.auftrag.name | e }}{% if cv.auftrag.transaction_date %} vom {{ frappe.utils.formatdate(cv.auftrag.transaction_date, "dd.MM.yyyy") }}{% endif %}</td>
+            </tr>
+            {% endif %}
+            {% if doc.po_no %}
+            <tr>
+                <td>Ihre Bestellung:</td>
+                <td class="text-right">{{ doc.po_no | e }}</td>
+            </tr>
+            {% endif %}
+            {% if cv.leistungszeitraum %}
+            <tr>
+                <td>Leistungszeitraum:</td>
+                <td class="text-right">{{ cv.leistungszeitraum | e }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td>Leistungsdatum:</td>
+                <td class="text-right">entspricht dem Rechnungsdatum</td>
+            </tr>
+            {% endif %}
+            {% if cv.faellig %}
+            <tr>
+                <td>Zahlbar bis:</td>
+                <td class="text-right">{{ cv.faellig | e }}</td>
+            </tr>
+            {% endif %}
+            {% if cv.ansprechpartner %}
+            <tr>
+                <td>Ansprechpartner:</td>
+                <td class="text-right">{{ cv.ansprechpartner | e }}</td>
+            </tr>
+            {% endif %}
+            {% if company.phone_no %}
+            <tr>
+                <td>Telefon:</td>
+                <td class="text-right">{{ company.phone_no | e }}</td>
+            </tr>
+            {% endif %}
+            {% if company.email %}
+            <tr>
+                <td>E-Mail:</td>
+                <td class="text-right">{{ company.email | e }}</td>
+            </tr>
+            {% endif %}
+            {% if company.tax_id %}
+            <tr>
+                <td>Steuernummer/USt-IdNr.:</td>
+                <td class="text-right">{{ company.tax_id | e }}</td>
+            </tr>
+            {% endif %}
+            {% if doc.tax_id %}
+            <tr>
+                <td>Ihre USt-IdNr.:</td>
+                <td class="text-right">{{ doc.tax_id | e }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<div id="faltmarke-1" class="din-mark"></div>
+<div id="lochmarke" class="din-mark"></div>
+<div id="faltmarke-2" class="din-mark"></div>
+
+<!-- CONTENT -->
+<div id="text">
+    <div id="subject">
+        <div class="titel">{{ cv.titel | e }}</div>
+        {% if cv.unterzeile %}<div>{{ cv.unterzeile | e }}</div>{% endif %}
+        {% if cv.bauvorhaben %}<div>Bauvorhaben: {{ cv.bauvorhaben | e }}</div>{% endif %}
+    </div>
+
+    <p class="cv-einleitung">
+        {%- if cv.art == "Abschlagsrechnung" and cv.auftrag -%}
+            Für den Auftrag {{ cv.auftrag.name | e }} stellen wir Ihnen vereinbarungsgemäß folgenden Abschlag in Rechnung:
+        {%- elif cv.art == "Schlussrechnung" -%}
+            Nach Fertigstellung und Abnahme der Arbeiten stellen wir Ihnen die ausgeführten Leistungen wie folgt in Rechnung:
+        {%- elif cv.art == "Gutschrift" -%}
+            Wir schreiben Ihnen folgende Beträge gut:
+        {%- else -%}
+            Wir stellen Ihnen folgende Leistungen in Rechnung:
+        {%- endif -%}
+    </p>
+
+    <table class="w-100 text-small cv-positionen">
+        <thead class="black-border">
+            <tr>
+                <th style="width: 6%">Pos.</th>
+                <th style="width: 51%">Beschreibung</th>
+                <th style="width: 9%" class="text-right">Menge</th>
+                <th style="width: 6%">Einh.</th>
+                <th style="width: 13%" class="text-right">Einzelpreis</th>
+                <th style="width: 15%" class="text-right">Gesamtpreis</th>
+            </tr>
+        </thead>
+        <tbody>
+        {%- for p in cv.positionen %}
+            {%- set n = p.row %}
+            <tr class="position">
+                <td>{{ p.nr }}</td>
+                <td>
+                    <b>{{ (n.item_name or n.item_code or "") | e }}</b>
+                    {%- if p.hinweis %}<br><span class="positionsart">{{ p.hinweis | e }}
+                        {%- if p.menge_auftrag is not none %} – Auftragsmenge {{ frappe.format_value(p.menge_auftrag, {"fieldtype": "Float"}) }} {{ _(n.uom or "") | e }}, abgerechnet nach Ist-Menge{% endif -%}
+                    </span>{% endif %}
+                    <span class="position-text">
+                    {%- if p.langtext %}
+                        <br>{{ p.langtext }}
+                    {%- endif %}
+                    </span>
+                </td>
+                <td class="text-right">{{ n.get_formatted("qty") }}</td>
+                <td>{{ _(n.uom or "") | e }}</td>
+                <td class="text-right">{{ n.get_formatted("rate") }}</td>
+                <td class="text-right">{{ n.get_formatted("amount") }}</td>
+            </tr>
+        {%- endfor %}
+        </tbody>
+    </table>
+
+    {%- macro geld(wert) -%}{{ frappe.utils.fmt_money(wert, currency=doc.currency) }}{%- endmacro -%}
+
+    {% if s.mit_abzug %}
+    {#- Schlussrechnung: Leistung, abzüglich der gestellten Abschlagsrechnungen, verbleibender
+        Betrag = gebuchte Summen der Rechnung (ERPNext rechnet die Abzugszeilen mit) #}
+    <table class="w-100 text-small cv-summen">
+        <tr>
+            <td style="width: 85%">Summe der Leistungen netto</td>
+            <td style="width: 15%" class="text-right">{{ geld(s.leistung.netto) }}</td>
+        </tr>
+        <tr>
+            <td>{{ steuer_text | e }}</td>
+            <td class="text-right">{{ geld(s.leistung.steuer) }}</td>
+        </tr>
+        <tr class="zwischen">
+            <td>Leistung brutto</td>
+            <td class="text-right">{{ geld(s.leistung.brutto) }}</td>
+        </tr>
+    </table>
+    <div class="cv-block">
+        <h4>Abzüglich bereits gestellter Abschlagsrechnungen</h4>
+        <table class="w-100 text-small cv-abschlaege">
+            <thead>
+                <tr>
+                    <th style="width: 6%">Nr.</th>
+                    <th style="width: 24%">Rechnung</th>
+                    <th style="width: 15%">vom</th>
+                    <th style="width: 10%"></th>
+                    <th style="width: 15%" class="text-right">netto</th>
+                    <th style="width: 15%" class="text-right">Steuer</th>
+                    <th style="width: 15%" class="text-right">brutto</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for z in doc.cv_abschlaege %}
+                <tr>
+                    <td>{{ z.nr }}</td>
+                    <td>{{ (z.rechnung or "") | e }}</td>
+                    <td>{{ frappe.utils.formatdate(z.datum, "dd.MM.yyyy") if z.datum else "" }}</td>
+                    <td>{{ "bezahlt" if z.bezahlt else "" }}</td>
+                    <td class="text-right">{{ geld(z.netto) }}</td>
+                    <td class="text-right">{{ geld(z.steuer) }}</td>
+                    <td class="text-right">{{ geld(z.brutto) }}</td>
+                </tr>
+            {% endfor %}
+                <tr class="summe">
+                    <td></td>
+                    <td colspan="3">Abschlagsrechnungen zusammen</td>
+                    <td class="text-right">{{ geld(s.abschlaege.netto) }}</td>
+                    <td class="text-right">{{ geld(s.abschlaege.steuer) }}</td>
+                    <td class="text-right">{{ geld(s.abschlaege.brutto) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <table class="w-100 text-small cv-summen">
+        <tr>
+            <td style="width: 85%"><b>Verbleibender Betrag netto</b></td>
+            <td style="width: 15%" class="text-right"><b>{{ geld(s.rest.netto) }}</b></td>
+        </tr>
+        {% if doc.tax_category == "Reverse Charge" %}
+        <tr>
+            <td>Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG)</td>
+            <td></td>
+        </tr>
+        {% else %}
+        <tr>
+            <td>{{ steuer_text | e }} auf den verbleibenden Betrag</td>
+            <td class="text-right">{{ geld(s.rest.steuer) }}</td>
+        </tr>
+        {% endif %}
+        <tr class="brutto">
+            <td>Zu zahlen</td>
+            <td class="text-right">{{ geld(s.rest.brutto) }}</td>
+        </tr>
+    </table>
+    {% if s.rundungsdifferenz %}
+    <p class="text-small"><i>Die Umsatzsteuer wird je Rechnung auf volle Cent gerundet; gegenüber der Steuer auf die
+        Gesamtleistung ergibt sich eine Rundungsdifferenz von {{ geld(s.rundungsdifferenz) }}.</i></p>
+    {% endif %}
+    {% else %}
+    {#- Gewöhnliche Rechnung, Abschlagsrechnung, Gutschrift: Summen von ERPNext; Nachlass wie im
+        Angebot Corevatis (Review Epic 4 P-1) #}
+    {%- set nachlass_text = "Nachlass" ~ ((" " ~ doc.get_formatted("additional_discount_percentage") ~ " %") if doc.additional_discount_percentage else "") %}
+    {%- set nachlass_brutto = doc.discount_amount and doc.apply_discount_on == "Grand Total" %}
+    {%- set nachlass_nach_steuer = nachlass_brutto and doc.get("is_cash_or_non_trade_discount") %}
+    <table class="w-100 text-small cv-summen">
+        {% if doc.discount_amount and not nachlass_nach_steuer %}
+        <tr>
+            <td style="width: 85%">Summe der Positionen</td>
+            <td style="width: 15%" class="text-right">{{ doc.get_formatted("total") }}</td>
+        </tr>
+        {% if nachlass_brutto %}
+        <tr>
+            <td>{{ nachlass_text }} (Netto-Anteil; {{ doc.get_formatted("discount_amount") }} auf die Bruttosumme)</td>
+            <td class="text-right">− {{ frappe.utils.fmt_money(doc.total - doc.net_total, currency=doc.currency) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td>{{ nachlass_text }}</td>
+            <td class="text-right">− {{ doc.get_formatted("discount_amount") }}</td>
+        </tr>
+        {% endif %}
+        {% endif %}
+        <tr>
+            <td style="width: 85%"><b>Nettobetrag</b></td>
+            <td style="width: 15%" class="text-right"><b>{{ doc.get_formatted("net_total") }}</b></td>
+        </tr>
+        {% if doc.tax_category == "Reverse Charge" %}
+        <tr>
+            <td>Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG)</td>
+            <td></td>
+        </tr>
+        {% else %}
+            {% for tax_row in doc.taxes %}
+                {%- set steuer_feld = "tax_amount_after_discount_amount" if tax_row.get("tax_amount_after_discount_amount") is not none else "tax_amount" %}
+                {% if tax_row.get(steuer_feld) or print_settings.print_taxes_with_zero_amount %}
+                <tr>
+                    <td>{{ (tax_row.description or tax_row.account_head or "") | e }}</td>
+                    <td class="text-right">{{ tax_row.get_formatted(steuer_feld) }}</td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+            {% if doc.tax_exemption_reason %}
+            <tr>
+                <td>{{ _(doc.tax_exemption_reason) | e }}</td>
+                <td></td>
+            </tr>
+            {% endif %}
+        {% endif %}
+        {% if nachlass_nach_steuer %}
+        <tr>
+            <td>Summe brutto vor Nachlass</td>
+            <td class="text-right">{{ frappe.utils.fmt_money(doc.grand_total + doc.discount_amount, currency=doc.currency) }}</td>
+        </tr>
+        <tr>
+            <td>{{ nachlass_text }}</td>
+            <td class="text-right">− {{ doc.get_formatted("discount_amount") }}</td>
+        </tr>
+        {% endif %}
+        <tr class="brutto">
+            <td>{% if cv.art == "Gutschrift" %}Gutschriftsbetrag{% else %}Rechnungsbetrag brutto{% endif %}</td>
+            <td class="text-right">{{ doc.get_formatted("grand_total") }}</td>
+        </tr>
+        {% if doc.total_advance %}
+        <tr>
+            <td>abzüglich erhaltener Anzahlungen</td>
+            <td class="text-right">− {{ doc.get_formatted("total_advance") }}</td>
+        </tr>
+        <tr>
+            <td><b>Zu zahlen</b></td>
+            <td class="text-right"><b>{{ doc.get_formatted("outstanding_amount") }}</b></td>
+        </tr>
+        {% endif %}
+    </table>
+    {% endif %}
+
+    {% if s.kumuliert %}
+    <div class="cv-block cv-text">
+        <h4>Stand der Abrechnung</h4>
+        <p>Auftragssumme {{ geld(s.kumuliert.auftragssumme) }} netto. Mit dieser Abschlagsrechnung ({{ s.kumuliert.dieser_prozent }} %)
+            sind {{ s.kumuliert.prozent }} % der Auftragssumme abgerechnet ({{ geld(s.kumuliert.netto) }} netto).
+            Die Abschläge werden mit der Schlussrechnung verrechnet.</p>
+        {% if s.bisherige_abschlaege %}
+        <table class="w-100 text-small cv-abschlaege">
+            <thead>
+                <tr>
+                    <th style="width: 6%">Nr.</th>
+                    <th style="width: 34%">Bisher gestellte Abschlagsrechnungen</th>
+                    <th style="width: 15%">vom</th>
+                    <th style="width: 15%"></th>
+                    <th style="width: 15%" class="text-right">netto</th>
+                    <th style="width: 15%" class="text-right">brutto</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for z in s.bisherige_abschlaege %}
+                <tr>
+                    <td>{{ z.nr }}</td>
+                    <td>{{ z.rechnung | e }}</td>
+                    <td>{{ z.datum | e }}</td>
+                    <td>{{ "bezahlt" if z.bezahlt else "offen" }}</td>
+                    <td class="text-right">{{ geld(z.netto) }}</td>
+                    <td class="text-right">{{ geld(z.brutto) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if cv.lohnanteil %}
+    <div class="cv-35a cv-text">
+        <h4>Hinweis nach § 35a EStG (haushaltsnahe Handwerkerleistungen)</h4>
+        <p>In dieser Rechnung enthaltene Lohn-, Fahrt- und Maschinenkosten: {{ geld(cv.lohnanteil.netto) }} netto,
+            {{ geld(cv.lohnanteil.steuer) }} Umsatzsteuer, {{ geld(cv.lohnanteil.brutto) }} brutto
+            {%- if cv.lohnanteil.prozent %} ({{ cv.lohnanteil.prozent }} % der Leistung){% endif %}.
+            Materialkosten sind nicht begünstigt.</p>
+    </div>
+    {% endif %}
+
+    <div class="cv-zahlung">
+        <p>{{ cv.zahlungstext | e }}</p>
+        {% if cv.bank %}
+        <table class="text-small">
+            {% for label, wert in cv.bank %}
+            <tr><td>{{ label }}:</td><td>{{ wert | e }}</td></tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+    </div>
+
+    {% if cv.bedingungen | striptags | trim %}
+    <div class="cv-block cv-text">
+        <h4>Zahlungsbedingungen</h4>
+        {{ cv.bedingungen }}
+    </div>
+    {% endif %}
+
+    <div class="cv-block schluss">
+        <p style="margin-bottom: 0.6em;">{% if cv.art == "Gutschrift" %}Für Rückfragen stehen wir Ihnen gern zur Verfügung.{% else %}Vielen Dank für Ihren Auftrag. Für Rückfragen stehen wir Ihnen gern zur Verfügung.{% endif %}</p>
+        <p>Mit freundlichen Grüßen</p>
+        <p>{{ company.company_name | e }}{% if cv.ansprechpartner %}<br>{{ cv.ansprechpartner | e }}{% endif %}</p>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<div id="footer-html" class="visible-pdf">
+    <div class="letter-head-footer">
+        <p id="pagenum">
+            Seite <span class="page"></span> von <span class="topage"></span>
+        </p>
+        <div class="print-format-footer">
+            {{ footer }}
+        </div>
+    </div>
+</div>
