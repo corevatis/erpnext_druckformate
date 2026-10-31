@@ -51,7 +51,7 @@ class TestContentHash(unittest.TestCase):
 
 	def test_keys_exclude_identity(self):
 		docs = pf.build_print_format_docs(SOURCES)
-		self.assertEqual(len(docs), 8)
+		self.assertEqual(len(docs), 10)
 		for doc in docs:
 			keys = pf.content_keys(doc)
 			self.assertNotIn("name", keys)
@@ -67,16 +67,24 @@ class TestSourcesInSync(unittest.TestCase):
 		self.assertIn("angebot_corevatis_daten(doc)", docs["Angebot Corevatis"]["html"])
 		# the standard format stays next to it
 		self.assertIn("Angebot", docs)
+		# Rechnung und Mahnung (7.3/7.5) neben „Ausgangsrechnung“ und „Mahnung“
+		self.assertEqual(docs["Rechnung Corevatis"]["doc_type"], "Sales Invoice")
+		self.assertIn("rechnung_corevatis_daten(doc)", docs["Rechnung Corevatis"]["html"])
+		self.assertEqual(docs["Mahnung Corevatis"]["doc_type"], "Dunning")
+		self.assertIn("mahnung_corevatis_daten(doc)", docs["Mahnung Corevatis"]["html"])
+		self.assertIn("Ausgangsrechnung", docs)
+		self.assertIn("Mahnung", docs)
 
 	def test_print_format_copy_matches_source(self):
 		# print_format/*.jinja is the source, print_format_sources/ the copy frappe-pf-init writes
 		root = Path(__file__).resolve().parents[2]
-		source = root / "print_format/angebot_corevatis.jinja"
-		if not source.is_file():
-			self.skipTest("repository sources not present (installed app)")
-		self.assertEqual(
-			source.read_text(encoding="utf-8"), (SOURCES / "angebot_corevatis.jinja").read_text(encoding="utf-8")
-		)
+		for name in ("angebot_corevatis", "rechnung_corevatis", "mahnung_corevatis"):
+			source = root / f"print_format/{name}.jinja"
+			if not source.is_file():
+				self.skipTest("repository sources not present (installed app)")
+			self.assertEqual(
+				source.read_text(encoding="utf-8"), (SOURCES / f"{name}.jinja").read_text(encoding="utf-8"), name
+			)
 
 
 class TestMigratorTemplateInSync(unittest.TestCase):

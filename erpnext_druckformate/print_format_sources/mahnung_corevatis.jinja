@@ -1,0 +1,204 @@
+{#- Mahnung Corevatis (Aufgabe 7.5, Handwerker#77): ERPNext Dunning nach DIN 5008 Form B in
+    Handwerkersprache - Betreff ist die Mahnstufe (Zahlungserinnerung, 1. Mahnung, 2. Mahnung),
+    Brieftext des Mahntyps, offene Rechnungen mit Rechnungsdatum, Fälligkeit, Tagen überfällig und
+    offenem Betrag, Mahngebühr, Gesamtbetrag, Zahlungsfrist und Bankverbindung aus den Firmendaten.
+    Daten über mahnung_corevatis_daten(doc) (erpnext_druckformate/mahnung_corevatis.py).
+    Ausgabe: Texte mit „| e“, HTML-Felder (Brieftext, Schlusstext, Adressanzeige) nur über
+    html_sicher (nh3, enge Allowlist). -#}
+<style>
+    .print-format {
+        margin-left: 0mm;
+        margin-right: 0mm;
+        margin-top: 10mm;
+        margin-bottom: 45mm;
+        font-size: 10pt;
+    }
+    .print-format #subject { margin-bottom: 1em; }
+    .print-format #subject .titel { font-size: 11pt; font-weight: bold; }
+    .print-format .cv-text p { margin: 0 0 0.5em 0; }
+    .print-format table.cv-posten th { text-align: left; }
+    .print-format table.cv-posten th.text-right { text-align: right; }
+    .print-format table.cv-posten td { vertical-align: top; padding: 2px 3px; }
+    .print-format table.cv-posten tr.position td { border-bottom: 0.5pt solid #ccc; }
+    .print-format table.cv-summen { margin-top: 0.5em; page-break-inside: avoid; }
+    .print-format table.cv-summen td { padding: 1px 3px; }
+    .print-format table.cv-summen tr.brutto td { border-top: solid black 1px; border-bottom: double black 3px; font-weight: bold; }
+    .print-format .cv-zahlung { margin-top: 1em; page-break-inside: avoid; }
+    .print-format .cv-zahlung table td { padding: 0 8px 0 0; }
+    .print-format .schluss { margin-top: 0.8em; page-break-inside: avoid; }
+    .print-format .schluss p { margin: 0; }
+</style>
+
+{%- set cv = mahnung_corevatis_daten(doc) -%}
+{%- set company = frappe.get_doc("Company", doc.company) -%}
+{%- set cmp_addr = frappe.get_doc("Address", doc.company_address) if doc.company_address else None -%}
+{%- set pay_addr = frappe.get_doc("Address", doc.customer_address) if doc.customer_address else None -%}
+{%- set contact = frappe.get_doc("Contact", doc.contact_person) if doc.contact_person else None -%}
+{%- macro geld(wert) -%}{{ frappe.utils.fmt_money(wert, currency=doc.currency) }}{%- endmacro -%}
+
+<!-- HEAD -->
+<div id="header">
+    <div class="letter-head">
+        {{ letter_head }}
+    </div>
+</div>
+
+<div class="contact-row">
+    <div id="address">
+        {% if cmp_addr %}
+        <div id="sender">
+            <p>{{ (cmp_addr.address_title or company.company_name) | e }} &#183; {{ (cmp_addr.address_line1 or "") | e }} &#183;
+                {% if cmp_addr.address_line2 %}{{ cmp_addr.address_line2 | e }} <br>{% endif %}
+                {{ (cmp_addr.pincode or "") | e }} {{ (cmp_addr.city or "") | e }}
+                {% if pay_addr and (cmp_addr.country != pay_addr.country) -%}
+                    &#183; {{ (cmp_addr.country or "") | upper | e }}
+                {%- endif %}
+            </p>
+        </div>
+        {% endif %}
+        {{ (doc.customer_name or "") | e }}<br />
+        {% if contact and ((contact.first_name or "") ~ " " ~ (contact.last_name or "")) | trim != (doc.customer_name or "") | trim %}
+                {%- if contact.salutation -%}
+                    {{ contact.salutation | e }}
+                {%- endif %}
+                {%- if contact.salutation in ["Hr.", "Herr"] %}n{% endif %}
+                {{ (contact.first_name or "") | e }} {{ (contact.last_name or "") | e }}<br>
+        {% endif %}
+        {{ cv.anschrift }}
+    </div>
+
+    <div id="contact">
+        <table class="w-100 text-small">
+            <tr>
+                <td>Datum:</td>
+                <td class="text-right">{{ frappe.utils.formatdate(doc.posting_date, "dd.MM.yyyy") }}</td>
+            </tr>
+            <tr>
+                <td>Unser Zeichen:</td>
+                <td class="text-right">{{ doc.name | e }}</td>
+            </tr>
+            {% if cv.kundennummer %}
+            <tr>
+                <td>Kunden-Nr.:</td>
+                <td class="text-right">{{ cv.kundennummer | e }}</td>
+            </tr>
+            {% endif %}
+            {% if cv.ansprechpartner %}
+            <tr>
+                <td>Ansprechpartner:</td>
+                <td class="text-right">{{ cv.ansprechpartner | e }}</td>
+            </tr>
+            {% endif %}
+            {% if company.phone_no %}
+            <tr>
+                <td>Telefon:</td>
+                <td class="text-right">{{ company.phone_no | e }}</td>
+            </tr>
+            {% endif %}
+            {% if company.email %}
+            <tr>
+                <td>E-Mail:</td>
+                <td class="text-right">{{ company.email | e }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<div id="faltmarke-1" class="din-mark"></div>
+<div id="lochmarke" class="din-mark"></div>
+<div id="faltmarke-2" class="din-mark"></div>
+
+<!-- CONTENT -->
+<div id="text">
+    <div id="subject">
+        <div class="titel">{{ cv.stufe | e }}</div>
+        {% if cv.zeilen %}
+        <div>{% if cv.zeilen | length == 1 %}{{ cv.zeilen[0].bezeichnung | e }} {{ cv.zeilen[0].rechnung | e }}{% else %}Offene Rechnungen: {% for z in cv.zeilen %}{{ z.rechnung | e }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</div>
+        {% endif %}
+    </div>
+
+    {% if cv.text | striptags | trim %}
+    <div class="cv-text">{{ cv.text }}</div>
+    {% endif %}
+
+    <table class="w-100 text-small cv-posten">
+        <thead class="black-border">
+            <tr>
+                <th style="width: 20%">Rechnung</th>
+                <th style="width: 30%">Bezeichnung</th>
+                <th style="width: 13%">vom</th>
+                <th style="width: 13%">fällig am</th>
+                <th style="width: 9%" class="text-right">Tage</th>
+                <th style="width: 15%" class="text-right">offen</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for z in cv.zeilen %}
+            <tr class="position">
+                <td>{{ z.rechnung | e }}</td>
+                <td>{{ z.bezeichnung | e }}</td>
+                <td>{{ z.rechnungsdatum | e }}</td>
+                <td>{{ z.faellig | e }}</td>
+                <td class="text-right">{{ z.tage }}</td>
+                <td class="text-right">{{ geld(z.offen) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="w-100 text-small cv-summen">
+        <tr>
+            <td style="width: 85%">Offene Rechnungsbeträge</td>
+            <td style="width: 15%" class="text-right">{{ geld(cv.summen.offen) }}</td>
+        </tr>
+        {% if cv.summen.gebuehr %}
+        <tr>
+            <td>Mahngebühr</td>
+            <td class="text-right">{{ geld(cv.summen.gebuehr) }}</td>
+        </tr>
+        {% endif %}
+        {% if cv.summen.zinsen %}
+        <tr>
+            <td>Verzugszinsen ({{ doc.get_formatted("rate_of_interest") }} % p. a.)</td>
+            <td class="text-right">{{ geld(cv.summen.zinsen) }}</td>
+        </tr>
+        {% endif %}
+        <tr class="brutto">
+            <td>Gesamtbetrag</td>
+            <td class="text-right">{{ geld(cv.summen.gesamt) }}</td>
+        </tr>
+    </table>
+
+    <div class="cv-zahlung">
+        <p>{{ cv.zahlungstext | e }}</p>
+        {% if cv.bank %}
+        <table class="text-small">
+            {% for label, wert in cv.bank %}
+            <tr><td>{{ label }}:</td><td>{{ wert | e }}</td></tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+    </div>
+
+    {% if cv.schluss | striptags | trim %}
+    <div class="cv-text" style="margin-top: 0.8em;">{{ cv.schluss }}</div>
+    {% endif %}
+
+    <div class="schluss">
+        <p>Mit freundlichen Grüßen</p>
+        <p>{{ company.company_name | e }}{% if cv.ansprechpartner %}<br>{{ cv.ansprechpartner | e }}{% endif %}</p>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<div id="footer-html" class="visible-pdf">
+    <div class="letter-head-footer">
+        <p id="pagenum">
+            Seite <span class="page"></span> von <span class="topage"></span>
+        </p>
+        <div class="print-format-footer">
+            {{ footer }}
+        </div>
+    </div>
+</div>
