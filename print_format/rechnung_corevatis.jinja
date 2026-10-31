@@ -433,6 +433,8 @@
         {% endif %}
     </div>
 
+    {#- Zahlungsbedingungen nur bei gewöhnlichen Rechnungen (rechnung_corevatis_daten lässt sie bei
+        Abschlag/Schlussrechnung leer) #}
     {% if cv.bedingungen | striptags | trim %}
     <div class="cv-block cv-text">
         <h4>Zahlungsbedingungen</h4>

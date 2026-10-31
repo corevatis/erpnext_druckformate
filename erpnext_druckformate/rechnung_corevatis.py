@@ -373,7 +373,10 @@ def rechnung_corevatis_daten(doc) -> dict:
 		"kundennummer": kundennummer(doc),
 		"ansprechpartner": ansprechpartner,
 		"anschrift": html_sicher(doc.get("address_display")),
-		"bedingungen": html_sicher(doc.get("terms")),
+		# Zahlungsbedingungen nur auf gewöhnlichen Rechnungen: Abschlags- und Schlussrechnung tragen die
+		# Bedingungen des Angebots („Gültigkeit 30 Tage“) mit, die auf einer Rechnung nichts aussagen -
+		# das Zahlungsziel steht im Zahlungssatz, die Vertragsbedingungen im Auftrag
+		"bedingungen": html_sicher(doc.get("terms")) if art == RECHNUNG else "",
 		"positionen": pos,
 		"summen": s,
 		"lohnanteil": lohnanteil(doc),
