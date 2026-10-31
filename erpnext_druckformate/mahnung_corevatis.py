@@ -24,17 +24,30 @@ STUFEN = {0: "Zahlungserinnerung", 1: "1. Mahnung", 2: "2. Mahnung"}
 
 
 def stufe_bezeichnung(dunning_type: str | None, bezeichnung: str | None = None, mahnstufe=None) -> str:
-	"""Betreff: Bezeichnung des Mahntyps (``Dunning Type.dunning_type``), sonst der Name ohne
-	Firmenkürzel („1. Mahnung - HST“ → „1. Mahnung“), sonst nach ``cv_mahnstufe``, sonst „Mahnung“."""
-	text = _text(bezeichnung)
-	if text:
-		return text
+	"""Betreff: Bezeichnung des Mahntyps (``Dunning Type.dunning_type``) ohne Firmenkürzel
+	(„Zahlungserinnerung (HST)“ → „Zahlungserinnerung“; der Adapter hängt das Kürzel an, weil ERPNext die
+	Bezeichnung über alle Firmen eindeutig verlangt), sonst der Name ohne Kürzel („1. Mahnung - HST“ →
+	„1. Mahnung“), sonst nach ``cv_mahnstufe``, sonst „Mahnung“."""
 	name = _text(dunning_type)
-	if name:
-		return name.rsplit(" - ", 1)[0] if " - " in name else name
+	kuerzel = name.rsplit(" - ", 1)[1] if " - " in name else ""
+	for wert in (_text(bezeichnung), name):
+		text = _ohne_kuerzel(wert, kuerzel)
+		if text:
+			return text
 	if mahnstufe is not None and int(_zahl(mahnstufe)) in STUFEN:
 		return STUFEN[int(_zahl(mahnstufe))]
 	return "Mahnung"
+
+
+def _ohne_kuerzel(text: str, kuerzel: str = "") -> str:
+	"""„1. Mahnung - HST“ → „1. Mahnung“, „Zahlungserinnerung (HST)“ → „Zahlungserinnerung“. Entfernt in
+	Klammern nur das Firmenkürzel, andere Klammern („Mahnung (freundlich)“) bleiben."""
+	if " - " in text:
+		text, kuerzel = text.rsplit(" - ", 1)
+	kuerzel = kuerzel.strip()
+	if kuerzel and text.rstrip().endswith(f"({kuerzel})"):
+		text = text.rstrip()[: -len(kuerzel) - 2]
+	return text.strip()
 
 
 def _als_datum(value) -> date | None:

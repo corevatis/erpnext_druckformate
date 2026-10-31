@@ -12,6 +12,14 @@ class TestStufe(unittest.TestCase):
 		self.assertEqual(mc.stufe_bezeichnung("1. Mahnung - HST", "1. Mahnung"), "1. Mahnung")
 		self.assertEqual(mc.stufe_bezeichnung("Zahlungserinnerung - HST", None), "Zahlungserinnerung")
 		self.assertEqual(mc.stufe_bezeichnung("Erste Mahnung", None), "Erste Mahnung")
+		# Adapter ab 7.5: Bezeichnung mit Firmenkürzel, weil ERPNext sie firmenübergreifend eindeutig verlangt
+		self.assertEqual(
+			mc.stufe_bezeichnung("Zahlungserinnerung (HST) - HST", "Zahlungserinnerung (HST)"), "Zahlungserinnerung"
+		)
+		self.assertEqual(mc.stufe_bezeichnung("1. Mahnung (HST) - HST", None), "1. Mahnung")
+		self.assertEqual(
+			mc.stufe_bezeichnung("Mahnung (freundlich) - HST", "Mahnung (freundlich)"), "Mahnung (freundlich)"
+		)
 		self.assertEqual(mc.stufe_bezeichnung(None, None, 2), "2. Mahnung")
 		self.assertEqual(mc.stufe_bezeichnung(None, None, None), "Mahnung")
 		self.assertEqual(mc.stufe_bezeichnung(None, None, 7), "Mahnung")
