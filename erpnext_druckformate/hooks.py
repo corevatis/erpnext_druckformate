@@ -17,6 +17,8 @@ after_migrate = ["erpnext_druckformate.print_format_sources.print_formats.sync_p
 jinja = {
 	"methods": [
 		"erpnext_druckformate.angebot_corevatis.angebot_corevatis_daten",
+		# Handwerker#105: Material/Arbeitskosten auf der Auftragsbestätigung (sales_order.jinja)
+		"erpnext_druckformate.angebot_corevatis.lohn_material_daten",
 		"erpnext_druckformate.rechnung_corevatis.rechnung_corevatis_daten",
 		"erpnext_druckformate.mahnung_corevatis.mahnung_corevatis_daten",
 	]

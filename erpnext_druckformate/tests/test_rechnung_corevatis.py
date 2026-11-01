@@ -211,12 +211,24 @@ class TestLohnMaterial(unittest.TestCase):
 			pos("NT", 1, 80, rc.ART_NACHTRAG),
 		]
 		mit = rc.positionen(items, je_position=True)
-		self.assertEqual([p["anteile"] for p in mit], [{"material": 128.70, "lohn": 261.41}, None])
+		self.assertEqual(
+			[p["anteile"] and (p["anteile"]["material"], p["anteile"]["lohn"]) for p in mit], [(128.70, 261.41), None]
+		)
 		self.assertEqual([p["anteile"] for p in rc.positionen(items)], [None, None])
 
 	def test_summen_wie_angebot(self):
 		doc = {"cv_material_netto": 97.2, "cv_material_brutto": 115.67, "cv_lohn_netto": 52.8, "cv_lohn_brutto": 62.83}
 		self.assertEqual(rc.lohn_material_summen(doc)["lohn"], {"netto": 52.8, "brutto": 62.83})
+
+	def test_hinweis_35a_nur_mit_arbeitskosten(self):
+		doc = {"cv_material_netto": 97.2, "cv_material_brutto": 115.67, "cv_lohn_netto": 52.8, "cv_lohn_brutto": 62.83}
+		self.assertEqual(
+			rc.hinweis_35a(rc.lohn_material_summen(doc)),
+			"Die in dieser Rechnung ausgewiesenen Arbeitskosten können nach § 35a EStG steuerlich begünstigt sein.",
+		)
+		nur_material = {"cv_material_netto": 40, "cv_material_brutto": 47.6, "cv_lohn_netto": 0, "cv_lohn_brutto": 0}
+		self.assertEqual(rc.hinweis_35a(rc.lohn_material_summen(nur_material)), "")
+		self.assertEqual(rc.hinweis_35a(None), "")
 
 if __name__ == "__main__":
 	unittest.main()

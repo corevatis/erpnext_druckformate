@@ -70,12 +70,21 @@ class TestLohnMaterial(unittest.TestCase):
 	def test_anteile_der_position(self):
 		self.assertEqual(
 			ac.anteile_der_position(pos("HS-02", 390.11, cv_materialanteil=128.70, cv_lohnanteil=261.41)),
-			{"material": 128.70, "lohn": 261.41},
+			{
+				"material": 128.70,
+				"lohn": 261.41,
+				"teile": [{"text": "Material", "betrag": 128.70}, {"text": "Lohn", "betrag": 261.41}],
+			},
 		)
-		# Regiestunde: alles Lohn
+		# Regiestunde: alles Lohn - im Druck nur „Lohn …“, kein „Material € 0,00“
 		self.assertEqual(
-			ac.anteile_der_position(pos("AZ-01", 139.20, cv_materialanteil=0, cv_lohnanteil=139.20)),
-			{"material": 0.0, "lohn": 139.20},
+			ac.anteile_der_position(pos("AZ-01", 139.20, cv_materialanteil=0, cv_lohnanteil=139.20))["teile"],
+			[{"text": "Lohn", "betrag": 139.20}],
+		)
+		# reine Materialposition: nur „Material …“
+		self.assertEqual(
+			ac.anteile_der_position(pos("MAT", 40, cv_materialanteil=40, cv_lohnanteil=0))["teile"],
+			[{"text": "Material", "betrag": 40.0}],
 		)
 
 	def test_ohne_oder_unstimmige_werte_kein_ausweis(self):
@@ -92,6 +101,24 @@ class TestLohnMaterial(unittest.TestCase):
 		)
 		self.assertIsNone(ac.lohn_material_summen({}))
 		self.assertIsNone(ac.lohn_material_summen({"cv_material_netto": 0, "cv_lohn_netto": 0}))
+
+	def test_davon_zeilen_arbeitskosten_zuerst(self):
+		"""Wortlaut § 35a Abs. 3 EStG „Arbeitskosten“, zuerst die begünstigten; 0-Zeilen entfallen."""
+		summen = ac.lohn_material_summen(
+			{"cv_material_netto": 128.70, "cv_material_brutto": 153.15, "cv_lohn_netto": 261.41, "cv_lohn_brutto": 311.08}
+		)
+		self.assertEqual(
+			ac.davon_zeilen(summen),
+			[
+				{"text": "davon Arbeitskosten (§ 35a EStG, begünstigt)", "netto": 261.41, "brutto": 311.08},
+				{"text": "davon Materialkosten", "netto": 128.70, "brutto": 153.15},
+			],
+		)
+		regie = ac.lohn_material_summen(
+			{"cv_material_netto": 0, "cv_material_brutto": 0, "cv_lohn_netto": 139.2, "cv_lohn_brutto": 165.65}
+		)
+		self.assertEqual([z["text"] for z in ac.davon_zeilen(regie)], [ac.DAVON_ARBEITSKOSTEN])
+		self.assertEqual(ac.davon_zeilen(None), [])
 
 
 class TestTexte(unittest.TestCase):

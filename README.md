@@ -41,11 +41,14 @@
 > mit Abschlagsübersicht aus `cv_abschlaege`, § 35a-Block aus `cv_lohnanteil_*`, Leistungszeitraum,
 > Steuernummer, Zahlungsziel und Bankverbindung aus dem Standard-Bankkonto der Firma) und „Mahnung
 > Corevatis“ (7.5, `mahnung_corevatis.py`: Mahnstufe als Betreff, offene Rechnungen mit Tagen
-> überfällig, Mahngebühr, Zahlungsfrist). Angebot und Rechnung weisen Material und Lohn getrennt aus
-> (Handwerker#105): „davon Materialkosten / davon Lohnkosten“ netto und brutto unter den Summen aus
-> `cv_material_*`/`cv_lohn_*`, je Position „Material … · Lohn …“ aus `cv_materialanteil`/`cv_lohnanteil`
-> (abschaltbar: „Lohn und Material je Position ausweisen“ in den Corevatis Abrechnung Einstellungen);
-> der § 35a-Block der Rechnung verweist dann auf die Lohnzeile statt den Betrag zu wiederholen.
+> überfällig, Mahngebühr, Zahlungsfrist). Angebot, Auftragsbestätigung und Rechnung weisen Arbeitskosten
+> und Material getrennt aus (Handwerker#105): „davon Arbeitskosten (§ 35a EStG, begünstigt)“ und „davon
+> Materialkosten“ netto und brutto unter den Summen aus `cv_lohn_*`/`cv_material_*` (Wortlaut nach § 35a
+> Abs. 3 EStG; eine Zeile mit 0 entfällt), je Position „Material … · Lohn …“ aus
+> `cv_materialanteil`/`cv_lohnanteil`, nur die Teile ungleich 0 (abschaltbar: „Lohn und Material je
+> Position ausweisen“ in den Corevatis Abrechnung Einstellungen). Auf der Rechnung folgt bei Arbeitskosten
+> über 0 der Satz „Die in dieser Rechnung ausgewiesenen Arbeitskosten können nach § 35a EStG steuerlich
+> begünstigt sein.“; der frühere § 35a-Block mit Beträgen bleibt nur für Rechnungen ohne diese Felder.
 > Die `cv_*`-Felder liefert `corevatis_erpnext`; ohne die
 > App drucken die Formate wie ihre Standardvorlagen. Tests ohne Site: `tests/test_*_corevatis.py`.
 

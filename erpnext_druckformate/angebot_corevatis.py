@@ -14,10 +14,13 @@ gelesen: ohne die App druckt das Format wie ein gewöhnliches Angebot (eine Grup
   ``cv_alternativposition`` (Kennzeichnung)
 
 Material und Lohn (Handwerker#105, ``corevatis_erpnext``): je Position ``cv_materialanteil`` und
-``cv_lohnanteil`` (Zeile „Material … · Lohn …“ unter dem Langtext, abschaltbar mit der Einstellung
-„Lohn und Material je Position ausweisen“), am Kopf ``cv_material_netto/_brutto`` und
-``cv_lohn_netto/_brutto`` (Zeilen „davon Materialkosten“, „davon Lohnkosten“ unter den Summen).
-Ohne die Felder (ältere Belege, ohne App) entfallen beide Ausweise. Gleiche Hilfen für die Rechnung.
+``cv_lohnanteil`` (Zeile „Material … · Lohn …“ unter dem Langtext, nur die Teile ungleich 0 -
+Regiestunde nur „Lohn …“, reines Material nur „Material …“; abschaltbar mit der Einstellung „Lohn und
+Material je Position ausweisen“), am Kopf ``cv_material_netto/_brutto`` und ``cv_lohn_netto/_brutto``
+(Zeilen „davon Arbeitskosten (§ 35a EStG, begünstigt)“ und „davon Materialkosten“ unter den Summen,
+``davon_zeilen``). „Arbeitskosten“ ist der Wortlaut von § 35a Abs. 3 EStG: Arbeitslohn einschließlich
+Maschinen- und Fahrtkosten, ohne Material. Ohne die Felder (ältere Belege, ohne App) entfallen beide
+Ausweise. Gleiche Hilfen für die Rechnung und - über ``lohn_material_daten`` - die Auftragsbestätigung.
 
 Summen: Eventual- und Alternativpositionen stehen nicht in der Angebotssumme. Die Summen des
 Formats sind die von ERPNext (``net_total``, Steuerzeilen, ``grand_total``); ERPNext lässt
@@ -38,6 +41,10 @@ EINSTELLUNGEN_ABRECHNUNG = "Corevatis Abrechnung Einstellungen"
 LOHN_MATERIAL_JE_POSITION = "lohn_material_je_position"
 # Toleranz Material + Lohn = Betrag (Cent)
 ANTEIL_TOLERANZ = 0.011
+# Wortlaut (Handwerker#105): „Arbeitskosten“ wie § 35a Abs. 3 EStG, gleich auf allen Belegen
+DAVON_ARBEITSKOSTEN = "davon Arbeitskosten (§ 35a EStG, begünstigt)"
+DAVON_MATERIALKOSTEN = "davon Materialkosten"
+HINWEIS_35A = "Die in dieser Rechnung ausgewiesenen Arbeitskosten können nach § 35a EStG steuerlich begünstigt sein."
 # Benutzer, die nicht als Ansprechpartner auf einem Angebot stehen sollen
 TECHNISCHE_BENUTZER = frozenset({"Administrator", "Guest"})
 
@@ -77,7 +84,9 @@ def anteile_der_position(row) -> dict | None:
 	betrag = round(_zahl(row.get("amount")), 2)
 	if not (material or lohn) or abs(material + lohn - betrag) > ANTEIL_TOLERANZ:
 		return None
-	return {"material": material, "lohn": lohn}
+	# Druck: nur die Teile ungleich 0 (Regiestunde nur „Lohn“, kein „Material € 0,00“)
+	teile = [{"text": text, "betrag": wert} for text, wert in (("Material", material), ("Lohn", lohn)) if wert]
+	return {"material": material, "lohn": lohn, "teile": teile}
 
 
 def lohn_material_summen(doc) -> dict | None:
@@ -94,6 +103,30 @@ def lohn_material_summen(doc) -> dict | None:
 	if not (werte["material"]["netto"] or werte["lohn"]["netto"]):
 		return None
 	return werte
+
+
+def davon_zeilen(summen: dict | None) -> list[dict]:
+	"""Zeilen unter den Summen: zuerst die Arbeitskosten (§ 35a), dann das Material, je ``text``,
+	``netto``, ``brutto``; eine Zeile mit 0 entfällt (reine Regie- oder Materialbelege)."""
+	if not summen:
+		return []
+	return [
+		{"text": text, **summen[art]}
+		for text, art in ((DAVON_ARBEITSKOSTEN, "lohn"), (DAVON_MATERIALKOSTEN, "material"))
+		if summen[art]["netto"]
+	]
+
+
+def lohn_material_daten(doc) -> dict:
+	"""Für Formate ohne eigene Daten-Methode (Auftragsbestätigung): ``davon`` (Zeilen unter den Summen)
+	und ``positionen`` (Anteile je Zeile von ``doc.items``, gleiche Reihenfolge; leer mit der Einstellung
+	aus)."""
+	items = doc.get("items") or []
+	je_position = lohn_material_je_position()
+	return {
+		"davon": davon_zeilen(lohn_material_summen(doc)),
+		"positionen": [anteile_der_position(row) if je_position else None for row in items],
+	}
 
 
 def lohn_material_je_position() -> bool:
@@ -262,6 +295,7 @@ def angebot_corevatis_daten(doc) -> dict:
 		ansprechpartner = _text(frappe.utils.get_fullname(doc.owner))
 
 	gruppen = gruppiere(doc.get("items"))
+	lm = lohn_material_summen(doc)
 	je_position = lohn_material_je_position()
 	for gruppe in gruppen:
 		for position in gruppe["positionen"]:
@@ -282,5 +316,6 @@ def angebot_corevatis_daten(doc) -> dict:
 		"gruppen": gruppen,
 		"mit_gruppen": bool(gruppen and gruppen[0]["nr"]),
 		"ausserhalb_summe": any(not p["in_summe"] for g in gruppen for p in g["positionen"]),
-		"lohn_material": lohn_material_summen(doc),
+		"lohn_material": lm,
+		"davon": davon_zeilen(lm),
 	}

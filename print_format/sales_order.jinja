@@ -6,9 +6,15 @@
         margin-bottom: 45mm;
         font-size: 10pt;
     }
+    /* Handwerker#105: Material/Arbeitskosten je Position und unter den Summen */
+    .print-format .cv-anteile { font-size: 8pt; }
+    .print-format table.cv-davon { page-break-inside: avoid; margin-top: 2mm; }
+    .print-format table.cv-davon td { padding: 0 3px; font-size: 8.5pt; }
 </style>
 
 {% set company = frappe.get_doc("Company", doc.company) %}
+{#- Handwerker#105: Ausweis wie Angebot und Rechnung Corevatis (ohne corevatis_erpnext leer) #}
+{% set cvlm = lohn_material_daten(doc) %}
 {% set cmp_addr = frappe.get_doc("Address", doc.company_address) if doc.company_address else None %}
 {% set pay_addr = frappe.get_doc("Address", doc.customer_address) if doc.customer_address else None %}
 
@@ -114,6 +120,10 @@
                             <!-- Angebot: A-2020-001 -->
                             <br>({{ _("Quotation") }}: {{ n.prevdoc_docname }})
                         {% endif %}
+                        {%- set anteile = cvlm.positionen[loop.index0] %}
+                        {%- if anteile %}
+                            <br><span class="cv-anteile">{% for t in anteile.teile %}{% if not loop.first %} · {% endif %}{{ t.text }} {{ frappe.utils.fmt_money(t.betrag, currency=doc.currency) }}{% endfor %}</span>
+                        {%- endif %}
                         </span>
                     </td>
                     <td>{{ _(n.uom) if not print_settings.print_uom_after_quantity else '&nbsp;'}}</td>
@@ -228,6 +238,17 @@
             {% endif %}
         </tfoot>
     </table>
+
+    {% if cvlm.davon %}
+    <table class="w-100 text-small cv-davon">
+        {%- for z in cvlm.davon %}
+        <tr>
+            <td style="width: 55%">{{ z.text }}</td>
+            <td style="width: 45%" class="text-right">{{ frappe.utils.fmt_money(z.netto, currency=doc.currency) }} netto / {{ frappe.utils.fmt_money(z.brutto, currency=doc.currency) }} brutto</td>
+        </tr>
+        {%- endfor %}
+    </table>
+    {% endif %}
 
     {% if doc.incoterm %}
         <p>{{ _("Terms of delivery") }}: Incoterms® 2020 {{ doc.incoterm }}{% if doc.named_place %} {{ doc.named_place }}{% endif %}</p><br>
