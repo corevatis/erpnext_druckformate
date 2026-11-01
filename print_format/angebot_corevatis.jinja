@@ -42,6 +42,10 @@
     .print-format .unterschriften td { width: 50%; vertical-align: bottom; padding-right: 10mm; }
     .print-format .unterschrift-linie { border-top: 1px solid black; margin-top: 9mm; padding-top: 1mm; font-size: 8pt; }
     .print-format .schluss p { margin: 0; }
+    {#- Material und Lohn (Handwerker#105): Zeile je Position, Davon-Zeilen unter den Summen #}
+    .print-format .cv-anteile { font-size: 8pt; }
+    .print-format table.cv-davon { page-break-inside: avoid; }
+    .print-format table.cv-davon td { padding: 0 3px; font-size: 8.5pt; }
 </style>
 
 {%- set cv = angebot_corevatis_daten(doc) -%}
@@ -169,6 +173,9 @@
                             <br>{{ p.langtext }}
                         {%- endif %}
                         </span>
+                        {%- if p.anteile %}
+                        <br><span class="cv-anteile">Material {{ frappe.utils.fmt_money(p.anteile.material, currency=doc.currency) }} · Lohn {{ frappe.utils.fmt_money(p.anteile.lohn, currency=doc.currency) }}</span>
+                        {%- endif %}
                     </td>
                     <td class="text-right">{% if erste %}<br>{% endif %}{{ n.get_formatted("qty") }}</td>
                     <td>{% if erste %}<br>{% endif %}{{ _(n.uom or "") | e }}</td>
@@ -290,6 +297,20 @@
             <td class="text-right">{{ doc.get_formatted("grand_total") }}</td>
         </tr>
     </table>
+    {% if cv.lohn_material %}
+    {#- Handwerker#105: Material und Lohn ergeben zusammen die Nettosumme (brutto mit Steueranteil) #}
+    {%- set lm = cv.lohn_material %}
+    <table class="w-100 text-small cv-davon">
+        <tr>
+            <td style="width: 55%">davon Materialkosten</td>
+            <td style="width: 45%" class="text-right">{{ frappe.utils.fmt_money(lm.material.netto, currency=doc.currency) }} netto / {{ frappe.utils.fmt_money(lm.material.brutto, currency=doc.currency) }} brutto</td>
+        </tr>
+        <tr>
+            <td>davon Lohnkosten</td>
+            <td class="text-right">{{ frappe.utils.fmt_money(lm.lohn.netto, currency=doc.currency) }} netto / {{ frappe.utils.fmt_money(lm.lohn.brutto, currency=doc.currency) }} brutto</td>
+        </tr>
+    </table>
+    {% endif %}
 
     {% if cv.ausserhalb_summe %}
     <p class="text-small"><i>Eventual- und Alternativpositionen (Gesamtpreis in Klammern) sind nicht in der

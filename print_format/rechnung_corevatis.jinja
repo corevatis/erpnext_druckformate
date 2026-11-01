@@ -39,6 +39,10 @@
     .print-format .cv-zahlung table td { padding: 0 8px 0 0; }
     .print-format .cv-35a { border: 0.5pt solid black; padding: 4px 6px; margin-top: 0.8em; page-break-inside: avoid; }
     .print-format .schluss p { margin: 0; }
+    {#- Material und Lohn (Handwerker#105): Zeile je Position, Davon-Zeilen unter den Summen #}
+    .print-format .cv-anteile { font-size: 8pt; }
+    .print-format table.cv-davon { page-break-inside: avoid; }
+    .print-format table.cv-davon td { padding: 0 3px; font-size: 8.5pt; }
 </style>
 
 {%- set cv = rechnung_corevatis_daten(doc) -%}
@@ -210,6 +214,9 @@
                         <br>{{ p.langtext }}
                     {%- endif %}
                     </span>
+                    {%- if p.anteile %}
+                    <br><span class="cv-anteile">Material {{ frappe.utils.fmt_money(p.anteile.material, currency=doc.currency) }} · Lohn {{ frappe.utils.fmt_money(p.anteile.lohn, currency=doc.currency) }}</span>
+                    {%- endif %}
                 </td>
                 <td class="text-right">{{ n.get_formatted("qty") }}</td>
                 <td>{{ _(n.uom or "") | e }}</td>
@@ -221,6 +228,19 @@
     </table>
 
     {%- macro geld(wert) -%}{{ frappe.utils.fmt_money(wert, currency=doc.currency) }}{%- endmacro -%}
+    {#- Handwerker#105: davon Material/Lohn (Schlussrechnung: der Leistung); der Lohn ist der § 35a-Lohnanteil #}
+    {%- macro davon(lm) -%}
+    <table class="w-100 text-small cv-davon">
+        <tr>
+            <td style="width: 55%">davon Materialkosten</td>
+            <td style="width: 45%" class="text-right">{{ geld(lm.material.netto) }} netto / {{ geld(lm.material.brutto) }} brutto</td>
+        </tr>
+        <tr>
+            <td>davon Lohnkosten{% if cv.lohnanteil %} (§ 35a EStG){% endif %}</td>
+            <td class="text-right">{{ geld(lm.lohn.netto) }} netto / {{ geld(lm.lohn.brutto) }} brutto</td>
+        </tr>
+    </table>
+    {%- endmacro -%}
 
     {% if s.mit_abzug %}
     {#- Schlussrechnung: Leistung, abzüglich der gestellten Abschlagsrechnungen, verbleibender
@@ -239,6 +259,7 @@
             <td class="text-right">{{ geld(s.leistung.brutto) }}</td>
         </tr>
     </table>
+    {% if cv.lohn_material %}{{ davon(cv.lohn_material) }}{% endif %}
     <div class="cv-block">
         <h4>Abzüglich bereits gestellter Abschlagsrechnungen</h4>
         <table class="w-100 text-small cv-abschlaege">
@@ -375,6 +396,7 @@
         </tr>
         {% endif %}
     </table>
+    {% if cv.lohn_material %}{{ davon(cv.lohn_material) }}{% endif %}
     {% endif %}
 
     {% if s.kumuliert %}
@@ -415,10 +437,17 @@
     {% if cv.lohnanteil %}
     <div class="cv-35a cv-text">
         <h4>Hinweis nach § 35a EStG (haushaltsnahe Handwerkerleistungen)</h4>
+        {% if cv.lohn_material %}
+        {#- Handwerker#105: Betrag steht einmal, in der Zeile „davon Lohnkosten (§ 35a EStG)“ #}
+        <p>In dieser Rechnung enthaltene Lohn-, Fahrt- und Maschinenkosten: siehe „davon Lohnkosten (§ 35a EStG)“
+            {%- if cv.lohnanteil.prozent %} ({{ cv.lohnanteil.prozent }} % der Leistung){% endif %}.
+            Materialkosten sind nicht begünstigt.</p>
+        {% else %}
         <p>In dieser Rechnung enthaltene Lohn-, Fahrt- und Maschinenkosten: {{ geld(cv.lohnanteil.netto) }} netto,
             {{ geld(cv.lohnanteil.steuer) }} Umsatzsteuer, {{ geld(cv.lohnanteil.brutto) }} brutto
             {%- if cv.lohnanteil.prozent %} ({{ cv.lohnanteil.prozent }} % der Leistung){% endif %}.
             Materialkosten sind nicht begünstigt.</p>
+        {% endif %}
     </div>
     {% endif %}
 

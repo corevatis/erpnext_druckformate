@@ -16,6 +16,11 @@ ERPNext-Summen:
   ``cv_lohnanteil_netto/_steuer/_brutto/_prozent``
 - Sales Invoice Item: ``cv_positionsart`` (Auftragsposition, Mehrmenge, Nachtrag, Abschlag,
   Abzug Abschlag), ``cv_menge_auftrag``
+- Material und Lohn (Handwerker#105): ``cv_material_netto/_brutto``, ``cv_lohn_netto/_brutto`` am Kopf
+  („davon Materialkosten“, „davon Lohnkosten (§ 35a EStG)“ unter den Summen, bei der Schlussrechnung
+  unter der Leistung), ``cv_materialanteil``/``cv_lohnanteil`` je Position. Der Lohn ist derselbe
+  Wert wie der § 35a-Lohnanteil; steht er in der Davon-Zeile, nennt der § 35a-Block ihn nicht noch
+  einmal.
 
 Summen: Die Abzugszeilen der Schlussrechnung (negativer Preis, ``Abzug Abschlag``) stehen nicht in
 der Positionsliste; stattdessen zeigt der Summenblock die Leistung (``cv_leistung_*``), die
@@ -32,9 +37,12 @@ from erpnext_druckformate.angebot_corevatis import (
 	TECHNISCHE_BENUTZER,
 	_text,
 	_zahl,
+	anteile_der_position,
 	html_sicher,
 	html_zu_zeilen,
 	langtext,
+	lohn_material_je_position,
+	lohn_material_summen,
 	objekt_adresse,
 )
 
@@ -110,11 +118,12 @@ def betreff(doc, auftrag: dict | None, art: str | None = None) -> tuple[str, str
 	return titel, unterzeile
 
 
-def positionen(items) -> list[dict]:
+def positionen(items, je_position: bool = False) -> list[dict]:
 	"""Positionen für den Druck: ohne Abzugszeilen, fortlaufend nummeriert.
 
 	Je Position ``nr``, ``row``, ``art`` (``cv_positionsart`` oder leer), ``hinweis`` („Nachtrag“,
-	„Mehrmenge“, „Auftragsmenge …“ bei Mindermenge), ``menge_auftrag`` (nur wenn abweichend)."""
+	„Mehrmenge“, „Auftragsmenge …“ bei Mindermenge), ``menge_auftrag`` (nur wenn abweichend),
+	``anteile`` (Material/Lohn, nur mit ``je_position``)."""
 	ergebnis = []
 	nr = 0
 	for row in items or []:
@@ -134,7 +143,14 @@ def positionen(items) -> list[dict]:
 			hinweis = "Mindermenge" if menge < menge_auftrag else "Mehrmenge"
 			abweichend = menge_auftrag
 		ergebnis.append(
-			{"nr": str(nr), "row": row, "art": art or None, "hinweis": hinweis, "menge_auftrag": abweichend}
+			{
+				"nr": str(nr),
+				"row": row,
+				"art": art or None,
+				"hinweis": hinweis,
+				"menge_auftrag": abweichend,
+				"anteile": anteile_der_position(row) if je_position else None,
+			}
 		)
 	return ergebnis
 
@@ -355,7 +371,7 @@ def rechnung_corevatis_daten(doc) -> dict:
 	ansprechpartner = ""
 	if doc.get("owner") and doc.owner not in TECHNISCHE_BENUTZER:
 		ansprechpartner = _text(frappe.utils.get_fullname(doc.owner))
-	pos = positionen(doc.get("items"))
+	pos = positionen(doc.get("items"), je_position=lohn_material_je_position())
 	for p in pos:
 		p["langtext"] = langtext(p["row"])
 	bank = _bank(doc.get("company"))
@@ -382,6 +398,7 @@ def rechnung_corevatis_daten(doc) -> dict:
 		"positionen": pos,
 		"summen": s,
 		"lohnanteil": lohnanteil(doc),
+		"lohn_material": lohn_material_summen(doc),
 		"bank": bankverbindung(bank),
 		"faellig": faellig,
 		"zahlungstext": zahlungstext(art, betrag, faellig, _text(doc.get("name")), bool(bank)),
