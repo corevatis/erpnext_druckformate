@@ -64,6 +64,36 @@ class TestGruppiere(unittest.TestCase):
 		self.assertEqual(ac.gruppiere([]), [])
 
 
+class TestLohnMaterial(unittest.TestCase):
+	"""Handwerker#105: HS-02 aus docs/P3.7-lohn-material-ausweis.md (Repo Handwerker)."""
+
+	def test_anteile_der_position(self):
+		self.assertEqual(
+			ac.anteile_der_position(pos("HS-02", 390.11, cv_materialanteil=128.70, cv_lohnanteil=261.41)),
+			{"material": 128.70, "lohn": 261.41},
+		)
+		# Regiestunde: alles Lohn
+		self.assertEqual(
+			ac.anteile_der_position(pos("AZ-01", 139.20, cv_materialanteil=0, cv_lohnanteil=139.20)),
+			{"material": 0.0, "lohn": 139.20},
+		)
+
+	def test_ohne_oder_unstimmige_werte_kein_ausweis(self):
+		self.assertIsNone(ac.anteile_der_position(pos("A", 100)))  # ohne App / älterer Beleg
+		self.assertIsNone(ac.anteile_der_position(pos("A", 100, cv_lohnanteil=40)))  # Material fehlt
+		self.assertIsNone(ac.anteile_der_position(pos("A", 100, cv_materialanteil=0, cv_lohnanteil=0)))
+		self.assertIsNone(ac.anteile_der_position(pos("A", 100, cv_materialanteil=50, cv_lohnanteil=40)))
+
+	def test_summen(self):
+		doc = {"cv_material_netto": 128.70, "cv_material_brutto": 153.15, "cv_lohn_netto": 261.41, "cv_lohn_brutto": 311.08}
+		self.assertEqual(
+			ac.lohn_material_summen(doc),
+			{"material": {"netto": 128.70, "brutto": 153.15}, "lohn": {"netto": 261.41, "brutto": 311.08}},
+		)
+		self.assertIsNone(ac.lohn_material_summen({}))
+		self.assertIsNone(ac.lohn_material_summen({"cv_material_netto": 0, "cv_lohn_netto": 0}))
+
+
 class TestTexte(unittest.TestCase):
 	def test_kundennummer(self):
 		self.assertEqual(ac.kundennummer({"quotation_to": "Customer", "party_name": "K-0001", "customer_name": "Feucht"}), "K-0001")

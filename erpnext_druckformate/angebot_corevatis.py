@@ -13,6 +13,12 @@ gelesen: ohne die App druckt das Format wie ein gewöhnliches Angebot (eine Grup
 - Quotation Item: ``cv_raum``, ``cv_bauteil`` (Gruppe), ``cv_eventualposition``,
   ``cv_alternativposition`` (Kennzeichnung)
 
+Material und Lohn (Handwerker#105, ``corevatis_erpnext``): je Position ``cv_materialanteil`` und
+``cv_lohnanteil`` (Zeile „Material … · Lohn …“ unter dem Langtext, abschaltbar mit der Einstellung
+„Lohn und Material je Position ausweisen“), am Kopf ``cv_material_netto/_brutto`` und
+``cv_lohn_netto/_brutto`` (Zeilen „davon Materialkosten“, „davon Lohnkosten“ unter den Summen).
+Ohne die Felder (ältere Belege, ohne App) entfallen beide Ausweise. Gleiche Hilfen für die Rechnung.
+
 Summen: Eventual- und Alternativpositionen stehen nicht in der Angebotssumme. Die Summen des
 Formats sind die von ERPNext (``net_total``, Steuerzeilen, ``grand_total``); ERPNext lässt
 Positionen mit ``is_alternative`` aus allen Summen und Steuern heraus. Die Gruppensummen
@@ -27,6 +33,11 @@ from html import escape, unescape
 GRUPPE_OHNE_ANGABE = "Allgemeine Leistungen"
 EVENTUAL = "Eventualposition"
 ALTERNATIV = "Alternativposition"
+# Einstellung „Lohn und Material je Position ausweisen“ (corevatis_erpnext, Standard an)
+EINSTELLUNGEN_ABRECHNUNG = "Corevatis Abrechnung Einstellungen"
+LOHN_MATERIAL_JE_POSITION = "lohn_material_je_position"
+# Toleranz Material + Lohn = Betrag (Cent)
+ANTEIL_TOLERANZ = 0.011
 # Benutzer, die nicht als Ansprechpartner auf einem Angebot stehen sollen
 TECHNISCHE_BENUTZER = frozenset({"Administrator", "Guest"})
 
@@ -54,6 +65,47 @@ def positionsart(row) -> str | None:
 def in_summe(row) -> bool:
 	"""Zählt die Position zur Angebotssumme? Nein bei Eventual- und Alternativpositionen."""
 	return positionsart(row) is None
+
+
+def anteile_der_position(row) -> dict | None:
+	"""Material und Lohn einer Position (#105) oder ``None``: beide Felder vorhanden, nicht beide 0 und
+	zusammen der Positionsbetrag (sonst ist die Zeile nicht berechnet - nichts Falsches drucken)."""
+	material, lohn = row.get("cv_materialanteil"), row.get("cv_lohnanteil")
+	if material is None or lohn is None:
+		return None
+	material, lohn = round(_zahl(material), 2), round(_zahl(lohn), 2)
+	betrag = round(_zahl(row.get("amount")), 2)
+	if not (material or lohn) or abs(material + lohn - betrag) > ANTEIL_TOLERANZ:
+		return None
+	return {"material": material, "lohn": lohn}
+
+
+def lohn_material_summen(doc) -> dict | None:
+	"""„davon Materialkosten / davon Lohnkosten“ je netto und brutto (#105) oder ``None`` ohne Werte."""
+	if doc.get("cv_material_netto") is None and doc.get("cv_lohn_netto") is None:
+		return None
+	werte = {
+		art: {
+			"netto": round(_zahl(doc.get(f"cv_{art}_netto")), 2),
+			"brutto": round(_zahl(doc.get(f"cv_{art}_brutto")), 2),
+		}
+		for art in ("material", "lohn")
+	}
+	if not (werte["material"]["netto"] or werte["lohn"]["netto"]):
+		return None
+	return werte
+
+
+def lohn_material_je_position() -> bool:
+	"""Einstellung „Lohn und Material je Position ausweisen“; ohne App oder ohne gespeicherten Wert an.
+
+	Roh aus ``tabSingles``: ``get_single_value`` gäbe für einen nie gespeicherten Check 0 zurück."""
+	import frappe
+
+	if not frappe.db.exists("DocType", EINSTELLUNGEN_ABRECHNUNG):
+		return True
+	wert = (frappe.db.get_singles_dict(EINSTELLUNGEN_ABRECHNUNG) or {}).get(LOHN_MATERIAL_JE_POSITION)
+	return wert in (None, "") or bool(int(_zahl(wert)))
 
 
 def gruppiere(items) -> list[dict]:
@@ -210,9 +262,11 @@ def angebot_corevatis_daten(doc) -> dict:
 		ansprechpartner = _text(frappe.utils.get_fullname(doc.owner))
 
 	gruppen = gruppiere(doc.get("items"))
+	je_position = lohn_material_je_position()
 	for gruppe in gruppen:
 		for position in gruppe["positionen"]:
 			position["langtext"] = langtext(position["row"])
+			position["anteile"] = anteile_der_position(position["row"]) if je_position else None
 	# Ausgabe im Format: reine Texte (Titel, Bauvorhaben, Gruppen, Namen) mit „| e“,
 	# HTML-Felder (Vorbemerkung, Langtext, Bedingungen, Anschrift) hier mit html_sicher
 	# bereinigt (Security-Review 4.3)
@@ -228,4 +282,5 @@ def angebot_corevatis_daten(doc) -> dict:
 		"gruppen": gruppen,
 		"mit_gruppen": bool(gruppen and gruppen[0]["nr"]),
 		"ausserhalb_summe": any(not p["in_summe"] for g in gruppen for p in g["positionen"]),
+		"lohn_material": lohn_material_summen(doc),
 	}

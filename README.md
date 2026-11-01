@@ -41,7 +41,12 @@
 > mit Abschlagsübersicht aus `cv_abschlaege`, § 35a-Block aus `cv_lohnanteil_*`, Leistungszeitraum,
 > Steuernummer, Zahlungsziel und Bankverbindung aus dem Standard-Bankkonto der Firma) und „Mahnung
 > Corevatis“ (7.5, `mahnung_corevatis.py`: Mahnstufe als Betreff, offene Rechnungen mit Tagen
-> überfällig, Mahngebühr, Zahlungsfrist). Die `cv_*`-Felder liefert `corevatis_erpnext`; ohne die
+> überfällig, Mahngebühr, Zahlungsfrist). Angebot und Rechnung weisen Material und Lohn getrennt aus
+> (Handwerker#105): „davon Materialkosten / davon Lohnkosten“ netto und brutto unter den Summen aus
+> `cv_material_*`/`cv_lohn_*`, je Position „Material … · Lohn …“ aus `cv_materialanteil`/`cv_lohnanteil`
+> (abschaltbar: „Lohn und Material je Position ausweisen“ in den Corevatis Abrechnung Einstellungen);
+> der § 35a-Block der Rechnung verweist dann auf die Lohnzeile statt den Betrag zu wiederholen.
+> Die `cv_*`-Felder liefert `corevatis_erpnext`; ohne die
 > App drucken die Formate wie ihre Standardvorlagen. Tests ohne Site: `tests/test_*_corevatis.py`.
 
 > Originally developed for ERPNext `version-13`, also tested against `version-15`. Other versions may need minor tweaks.

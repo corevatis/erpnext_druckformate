@@ -200,5 +200,23 @@ class TestTexte(unittest.TestCase):
 		self.assertEqual(rc.kundennummer({}), "")
 
 
+
+class TestLohnMaterial(unittest.TestCase):
+	"""Handwerker#105: Material/Lohn je Position nur mit Einstellung, ohne Abzugszeilen; Summen."""
+
+	def test_positionen_mit_anteilen(self):
+		items = [
+			pos("HS-02", 13.26, 29.42, rc.ART_AUFTRAG, cv_materialanteil=128.70, cv_lohnanteil=261.41),
+			pos("ABSCHLAG", 1, -150, rc.ART_ABZUG, cv_materialanteil=0, cv_lohnanteil=0),
+			pos("NT", 1, 80, rc.ART_NACHTRAG),
+		]
+		mit = rc.positionen(items, je_position=True)
+		self.assertEqual([p["anteile"] for p in mit], [{"material": 128.70, "lohn": 261.41}, None])
+		self.assertEqual([p["anteile"] for p in rc.positionen(items)], [None, None])
+
+	def test_summen_wie_angebot(self):
+		doc = {"cv_material_netto": 97.2, "cv_material_brutto": 115.67, "cv_lohn_netto": 52.8, "cv_lohn_brutto": 62.83}
+		self.assertEqual(rc.lohn_material_summen(doc)["lohn"], {"netto": 52.8, "brutto": 62.83})
+
 if __name__ == "__main__":
 	unittest.main()
