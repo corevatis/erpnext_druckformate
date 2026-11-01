@@ -43,6 +43,7 @@
     .print-format .cv-anteile { font-size: 8pt; }
     .print-format table.cv-davon { page-break-inside: avoid; }
     .print-format table.cv-davon td { padding: 0 3px; font-size: 8.5pt; }
+    .print-format .cv-35a-satz { margin: 0.3em 0 0 0; page-break-inside: avoid; }
 </style>
 
 {%- set cv = rechnung_corevatis_daten(doc) -%}
@@ -215,7 +216,8 @@
                     {%- endif %}
                     </span>
                     {%- if p.anteile %}
-                    <br><span class="cv-anteile">Material {{ frappe.utils.fmt_money(p.anteile.material, currency=doc.currency) }} · Lohn {{ frappe.utils.fmt_money(p.anteile.lohn, currency=doc.currency) }}</span>
+                    {#- Handwerker#105: nur Teile ungleich 0 (Regiestunde nur „Lohn“) #}
+                    <br><span class="cv-anteile">{% for t in p.anteile.teile %}{% if not loop.first %} · {% endif %}{{ t.text }} {{ frappe.utils.fmt_money(t.betrag, currency=doc.currency) }}{% endfor %}</span>
                     {%- endif %}
                 </td>
                 <td class="text-right">{{ n.get_formatted("qty") }}</td>
@@ -228,18 +230,23 @@
     </table>
 
     {%- macro geld(wert) -%}{{ frappe.utils.fmt_money(wert, currency=doc.currency) }}{%- endmacro -%}
-    {#- Handwerker#105: davon Material/Lohn (Schlussrechnung: der Leistung); der Lohn ist der § 35a-Lohnanteil #}
-    {%- macro davon(lm) -%}
+    {#- Handwerker#105: davon Arbeitskosten/Material (Schlussrechnung: der Leistung); die Arbeitskosten sind
+        der § 35a-Lohnanteil, darunter der Satz zu § 35a (nur mit Arbeitskosten > 0) #}
+    {%- macro davon(schluss) -%}
     <table class="w-100 text-small cv-davon">
+        {%- for z in cv.davon %}
         <tr>
-            <td style="width: 55%">davon Materialkosten</td>
-            <td style="width: 45%" class="text-right">{{ geld(lm.material.netto) }} netto / {{ geld(lm.material.brutto) }} brutto</td>
+            <td style="width: 55%">{{ z.text }}</td>
+            <td style="width: 45%" class="text-right">{{ geld(z.netto) }} netto / {{ geld(z.brutto) }} brutto</td>
         </tr>
-        <tr>
-            <td>davon Lohnkosten{% if cv.lohnanteil %} (§ 35a EStG){% endif %}</td>
-            <td class="text-right">{{ geld(lm.lohn.netto) }} netto / {{ geld(lm.lohn.brutto) }} brutto</td>
-        </tr>
+        {%- endfor %}
     </table>
+    {%- if cv.hinweis_35a %}
+    <p class="text-small cv-35a-satz">{{ cv.hinweis_35a }} Begünstigt sind die Arbeitskosten (Lohn-, Fahrt- und
+        Maschinenkosten) einschließlich der darauf entfallenden Umsatzsteuer, nicht die Materialkosten.
+        {%- if schluss %} Die Angaben gelten für die gesamte Leistung; die Arbeitskosten der Abschlagsrechnungen
+        sind darin enthalten.{% endif %}</p>
+    {%- endif %}
     {%- endmacro -%}
 
     {% if s.mit_abzug %}
@@ -259,7 +266,7 @@
             <td class="text-right">{{ geld(s.leistung.brutto) }}</td>
         </tr>
     </table>
-    {% if cv.lohn_material %}{{ davon(cv.lohn_material) }}{% endif %}
+    {% if cv.davon %}{{ davon(true) }}{% endif %}
     <div class="cv-block">
         <h4>Abzüglich bereits gestellter Abschlagsrechnungen</h4>
         <table class="w-100 text-small cv-abschlaege">
@@ -396,7 +403,7 @@
         </tr>
         {% endif %}
     </table>
-    {% if cv.lohn_material %}{{ davon(cv.lohn_material) }}{% endif %}
+    {% if cv.davon %}{{ davon(false) }}{% endif %}
     {% endif %}
 
     {% if s.kumuliert %}
@@ -434,20 +441,15 @@
     </div>
     {% endif %}
 
-    {% if cv.lohnanteil %}
+    {% if cv.lohnanteil and not cv.davon %}
+    {#- ältere Rechnungen ohne Ausweis Material/Arbeitskosten (vor Handwerker#105): Block mit Beträgen;
+        sonst stehen Beträge und Satz unter den Summen (Makro davon) #}
     <div class="cv-35a cv-text">
         <h4>Hinweis nach § 35a EStG (haushaltsnahe Handwerkerleistungen)</h4>
-        {% if cv.lohn_material %}
-        {#- Handwerker#105: Betrag steht einmal, in der Zeile „davon Lohnkosten (§ 35a EStG)“ #}
-        <p>In dieser Rechnung enthaltene Lohn-, Fahrt- und Maschinenkosten: siehe „davon Lohnkosten (§ 35a EStG)“
-            {%- if cv.lohnanteil.prozent %} ({{ cv.lohnanteil.prozent }} % der Leistung){% endif %}.
-            Materialkosten sind nicht begünstigt.</p>
-        {% else %}
         <p>In dieser Rechnung enthaltene Lohn-, Fahrt- und Maschinenkosten: {{ geld(cv.lohnanteil.netto) }} netto,
             {{ geld(cv.lohnanteil.steuer) }} Umsatzsteuer, {{ geld(cv.lohnanteil.brutto) }} brutto
             {%- if cv.lohnanteil.prozent %} ({{ cv.lohnanteil.prozent }} % der Leistung){% endif %}.
             Materialkosten sind nicht begünstigt.</p>
-        {% endif %}
     </div>
     {% endif %}
 

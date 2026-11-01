@@ -17,10 +17,10 @@ ERPNext-Summen:
 - Sales Invoice Item: ``cv_positionsart`` (Auftragsposition, Mehrmenge, Nachtrag, Abschlag,
   Abzug Abschlag), ``cv_menge_auftrag``
 - Material und Lohn (Handwerker#105): ``cv_material_netto/_brutto``, ``cv_lohn_netto/_brutto`` am Kopf
-  („davon Materialkosten“, „davon Lohnkosten (§ 35a EStG)“ unter den Summen, bei der Schlussrechnung
-  unter der Leistung), ``cv_materialanteil``/``cv_lohnanteil`` je Position. Der Lohn ist derselbe
-  Wert wie der § 35a-Lohnanteil; steht er in der Davon-Zeile, nennt der § 35a-Block ihn nicht noch
-  einmal.
+  („davon Arbeitskosten (§ 35a EStG, begünstigt)“ und „davon Materialkosten“ unter den Summen, bei der
+  Schlussrechnung unter der Leistung), ``cv_materialanteil``/``cv_lohnanteil`` je Position. Der Lohn
+  ist derselbe Wert wie der § 35a-Lohnanteil; steht er in der Davon-Zeile, folgt statt des § 35a-Blocks
+  mit Beträgen der Satz ``HINWEIS_35A`` (nur mit Arbeitskosten > 0).
 
 Summen: Die Abzugszeilen der Schlussrechnung (negativer Preis, ``Abzug Abschlag``) stehen nicht in
 der Positionsliste; stattdessen zeigt der Summenblock die Leistung (``cv_leistung_*``), die
@@ -37,7 +37,9 @@ from erpnext_druckformate.angebot_corevatis import (
 	TECHNISCHE_BENUTZER,
 	_text,
 	_zahl,
+	HINWEIS_35A,
 	anteile_der_position,
+	davon_zeilen,
 	html_sicher,
 	html_zu_zeilen,
 	langtext,
@@ -236,6 +238,11 @@ def lohnanteil(doc) -> dict | None:
 	}
 
 
+def hinweis_35a(summen: dict | None) -> str:
+	"""Satz zu § 35a unter den Davon-Zeilen der Rechnung - nur mit Arbeitskosten > 0, sonst leer."""
+	return HINWEIS_35A if summen and summen["lohn"]["netto"] > 0 else ""
+
+
 def leistungszeitraum(von, bis) -> str:
 	"""„03.11.2026 – 14.11.2026“, ein Tag → „14.11.2026“, nur Ende → „bis 14.11.2026“, nur Anfang →
 	„ab 03.11.2026“, nichts → leer."""
@@ -372,6 +379,7 @@ def rechnung_corevatis_daten(doc) -> dict:
 	if doc.get("owner") and doc.owner not in TECHNISCHE_BENUTZER:
 		ansprechpartner = _text(frappe.utils.get_fullname(doc.owner))
 	pos = positionen(doc.get("items"), je_position=lohn_material_je_position())
+	lm = lohn_material_summen(doc)
 	for p in pos:
 		p["langtext"] = langtext(p["row"])
 	bank = _bank(doc.get("company"))
@@ -398,7 +406,9 @@ def rechnung_corevatis_daten(doc) -> dict:
 		"positionen": pos,
 		"summen": s,
 		"lohnanteil": lohnanteil(doc),
-		"lohn_material": lohn_material_summen(doc),
+		"lohn_material": lm,
+		"davon": davon_zeilen(lm),
+		"hinweis_35a": hinweis_35a(lm),
 		"bank": bankverbindung(bank),
 		"faellig": faellig,
 		"zahlungstext": zahlungstext(art, betrag, faellig, _text(doc.get("name")), bool(bank)),

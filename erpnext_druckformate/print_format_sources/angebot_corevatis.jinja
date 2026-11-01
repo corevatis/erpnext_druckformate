@@ -174,7 +174,8 @@
                         {%- endif %}
                         </span>
                         {%- if p.anteile %}
-                        <br><span class="cv-anteile">Material {{ frappe.utils.fmt_money(p.anteile.material, currency=doc.currency) }} · Lohn {{ frappe.utils.fmt_money(p.anteile.lohn, currency=doc.currency) }}</span>
+                        {#- Handwerker#105: nur Teile ungleich 0 (Regiestunde nur „Lohn“) #}
+                        <br><span class="cv-anteile">{% for t in p.anteile.teile %}{% if not loop.first %} · {% endif %}{{ t.text }} {{ frappe.utils.fmt_money(t.betrag, currency=doc.currency) }}{% endfor %}</span>
                         {%- endif %}
                     </td>
                     <td class="text-right">{% if erste %}<br>{% endif %}{{ n.get_formatted("qty") }}</td>
@@ -297,18 +298,16 @@
             <td class="text-right">{{ doc.get_formatted("grand_total") }}</td>
         </tr>
     </table>
-    {% if cv.lohn_material %}
-    {#- Handwerker#105: Material und Lohn ergeben zusammen die Nettosumme (brutto mit Steueranteil) #}
-    {%- set lm = cv.lohn_material %}
+    {% if cv.davon %}
+    {#- Handwerker#105: Arbeitskosten (§ 35a EStG: Lohn, Maschinen, Fahrt) und Material ergeben zusammen
+        die Nettosumme (brutto mit Steueranteil); eine Zeile mit 0 entfällt #}
     <table class="w-100 text-small cv-davon">
+        {%- for z in cv.davon %}
         <tr>
-            <td style="width: 55%">davon Materialkosten</td>
-            <td style="width: 45%" class="text-right">{{ frappe.utils.fmt_money(lm.material.netto, currency=doc.currency) }} netto / {{ frappe.utils.fmt_money(lm.material.brutto, currency=doc.currency) }} brutto</td>
+            <td style="width: 55%">{{ z.text }}</td>
+            <td style="width: 45%" class="text-right">{{ frappe.utils.fmt_money(z.netto, currency=doc.currency) }} netto / {{ frappe.utils.fmt_money(z.brutto, currency=doc.currency) }} brutto</td>
         </tr>
-        <tr>
-            <td>davon Lohnkosten</td>
-            <td class="text-right">{{ frappe.utils.fmt_money(lm.lohn.netto, currency=doc.currency) }} netto / {{ frappe.utils.fmt_money(lm.lohn.brutto, currency=doc.currency) }} brutto</td>
-        </tr>
+        {%- endfor %}
     </table>
     {% endif %}
 
