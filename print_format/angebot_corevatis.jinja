@@ -117,7 +117,7 @@
             {% if company.email %}
             <tr>
                 <td>E-Mail:</td>
-                <td class="text-right">{{ company.email | e }}</td>
+                <td class="text-right{% if (company.email or "") | length > 30 %} cv-lang{% endif %}">{{ company.email | e }}</td>
             </tr>
             {% endif %}
             {% if doc.valid_till %}

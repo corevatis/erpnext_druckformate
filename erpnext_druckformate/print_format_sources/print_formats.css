@@ -38,14 +38,32 @@
 
 .print-format #address {
   float: left;
-  width: 85mm;
+  width: 80mm;
   padding-left: 5mm;
 }
 
 .print-format #contact {
   float: right;
-  width: 75mm;
+  width: 85mm;
   margin-top: 5mm;
+}
+
+/* Lange Werte (E-Mail mit langer Domain) wurden rechts abgeschnitten: feste Spalten, Umbruch statt Überlauf */
+.print-format #contact table {
+  table-layout: fixed;
+}
+
+.print-format #contact td:first-child {
+  width: 27mm;
+}
+
+.print-format #contact td.text-right {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.print-format #contact td.cv-lang {
+  font-size: 88%;
 }
 
 .print-format #contact td {
