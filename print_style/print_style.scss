@@ -17,7 +17,8 @@
         position: relative;
         overflow: hidden;
         left: 20mm;
-        height: 45mm;
+        /* wächst mit: Rechnungen haben bis zu neun Zeilen im Kontaktblock, die letzten wurden abgeschnitten */
+        min-height: 45mm;
         /* müsste eigentlich 180mm sein, sieht mit 170 aber besser aus. */
         width: 170mm;
     }
@@ -66,7 +67,8 @@
     }
 
     #contact td {
-        padding: 1.5px !important;
+        padding: 0.5px 1.5px !important;
+        line-height: 1.25;
     }
 
     #subject {
